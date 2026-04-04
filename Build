@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+
+build_dir=.build/
+protocol_header_dir="$build_dir/protocol"
+protocol_source_dir="./protocol"
+
+build_protocol_headers() {
+    echo "Building protocol headers."
+
+    # wayland-scanner is a tool which generates C headers and rigging
+    # for Wayland protocols, which are specified in XML. wlroots requires
+    # you to rig these up to your build system yourself and provide them
+    # in the include path.
+    scanner=$(pkg-config --variable=wayland_scanner wayland-scanner)
+    mkdir -p "$protocol_header_dir"
+    for xml in "$protocol_source_dir"/*.xml; do
+        "$scanner" client-header "$xml" "$protocol_header_dir"/$(basename --suffix=.xml  $xml)".h"
+    done
+}
+
+build_protocol_headers
+echo Done.
