@@ -16,10 +16,22 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
+library
+    import:           warnings
+    hs-source-dirs:   .
+    exposed-modules:  WXYZ.Wayland
+    include-dirs:     .build/protocol/
+    pkgconfig-depends:
+      , wayland-client
+      , xkbcommon
+    build-depends:    base >=4.18.3.0 && < 5,
+    default-language: GHC2021
+
 executable wxyz
     import:           warnings
     main-is:          Main.hs
     build-depends:
         base >=4.18.3.0 && < 5,
+        wxyzmonad
     hs-source-dirs:   exe
     default-language: GHC2021
