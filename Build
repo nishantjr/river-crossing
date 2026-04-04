@@ -22,4 +22,5 @@ build_protocol_headers() {
 }
 
 build_protocol_headers
+cabal "$@"
 echo Done.
