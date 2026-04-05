@@ -17,7 +17,8 @@ build_protocol_headers() {
     scanner=$(pkg-config --variable=wayland_scanner wayland-scanner)
     mkdir -p "$protocol_header_dir"
     for xml in "$protocol_source_dir"/*.xml; do
-        "$scanner" client-header "$xml" "$protocol_header_dir"/$(basename --suffix=.xml  $xml)".h"
+        "$scanner" client-header "$xml" "$protocol_header_dir"/$(basename --suffix=.xml  $xml)"-client.h"
+        "$scanner" private-code  "$xml" "$protocol_header_dir"/$(basename --suffix=.xml  $xml)"-private.c"
     done
 }
 
