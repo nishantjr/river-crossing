@@ -22,8 +22,7 @@ library
     exposed-modules:  WXYZ.Wayland
     include-dirs:     .build/protocol/,
                       .
-    c-sources:        cbits/river.c,
-                      .build/protocol/river-window-management-v1-private.c,
+    c-sources:        .build/protocol/river-window-management-v1-private.c,
                       .build/protocol/river-xkb-bindings-v1-private.c
     pkgconfig-depends:
       , wayland-client
