@@ -7,4 +7,6 @@ main = do display <- wlDisplayConnect
           putStrLn "Connected to the Display."
           success <- awaitRiverProtocols display
           case success of True  -> putStrLn "Good to go."
-                          False -> putStrLn "Uh oh. Couldn't obtain river Protocols."
+                          False -> error "Uh oh. Couldn't obtain river Protocols."
+          event <- next_event display
+          print event
