@@ -18,10 +18,14 @@ import           Foreign.Storable
 data CWlDisplay
 type WlDisplay = Ptr CWlDisplay
 
-wlDisplayConnect :: IO WlDisplay
+wlDisplayConnect :: IO (Maybe WlDisplay)
 -- ^ Connect to the wayland display with default socket paths.
 -- We do not yet allow for specifying the path to the socket.
-wlDisplayConnect = _wl_display_connect nullPtr
+wlDisplayConnect = do
+    display <- _wl_display_connect nullPtr
+    if (display == nullPtr)
+    then pure Nothing
+    else pure $ Just display
 
 foreign import capi "wayland-client-core.h wl_display_connect"
     _wl_display_connect :: CString -> IO WlDisplay
