@@ -18,15 +18,15 @@ enum wxyz_event_type {
     WM_SEAT,
 };
 
-struct wm_unavailable      { };
-struct wm_finished         { };
-struct wm_manage_start     { };
-struct wm_render_start     { };
-struct wm_session_locked   { };
-struct wm_session_unlocked { };
-struct wm_window           { struct river_window_v1 *window; };
-struct wm_output           { struct river_output_v1 *output; };
-struct wm_seat             { struct river_seat_v1   *seat; };
+struct wm_unavailable      { struct river_window_manager_v1* river_wm; };
+struct wm_finished         { struct river_window_manager_v1* river_wm; };
+struct wm_manage_start     { struct river_window_manager_v1* river_wm; };
+struct wm_render_start     { struct river_window_manager_v1* river_wm; };
+struct wm_session_locked   { struct river_window_manager_v1* river_wm; };
+struct wm_session_unlocked { struct river_window_manager_v1* river_wm; };
+struct wm_window           { struct river_window_manager_v1* river_wm; struct river_window_v1 *window; };
+struct wm_output           { struct river_window_manager_v1* river_wm; struct river_output_v1 *output; };
+struct wm_seat             { struct river_window_manager_v1* river_wm; struct river_seat_v1   *seat; };
 
 struct wxyz_event {
     struct wl_list link;

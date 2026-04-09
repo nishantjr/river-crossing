@@ -55,36 +55,42 @@ static void wm_handle_unavailable(void *data, struct river_window_manager_v1 *ob
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_UNAVAILABLE;
+    wx_event->wm_unavailable.river_wm = obj;
 }
 
 static void wm_handle_finished(void *data, struct river_window_manager_v1 *obj)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_FINISHED;
+    wx_event->wm_finished.river_wm = obj;
 }
 
 static void wm_handle_manage_start(void *data, struct river_window_manager_v1 *obj)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_MANAGE_START;
+    wx_event->wm_manage_start.river_wm = obj;
 }
 
 static void wm_handle_render_start(void *data, struct river_window_manager_v1 *obj)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_RENDER_START;
+    wx_event->wm_render_start.river_wm = obj;
 }
 
 static void wm_handle_session_locked(void *data, struct river_window_manager_v1 *obj)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_SESSION_LOCKED;
+    wx_event->wm_session_locked.river_wm = obj;
 }
 
 static void wm_handle_session_unlocked(void *data, struct river_window_manager_v1 *obj)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_SESSION_UNLOCKED;
+    wx_event->wm_session_unlocked.river_wm = obj;
 }
 
 static void wm_handle_window(
@@ -92,6 +98,7 @@ static void wm_handle_window(
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_WINDOW;
+    wx_event->wm_window.river_wm = obj;
     // river_window_v1_add_listener(window->obj, &river_window_listener, window);
 }
 
@@ -100,6 +107,7 @@ static void wm_handle_output(
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_OUTPUT;
+    wx_event->wm_output.river_wm = obj;
     // river_output_v1_add_listener(output->obj, &river_output_listener, output);
 }
 
@@ -108,6 +116,7 @@ static void wm_handle_seat(
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_SEAT;
+    wx_event->wm_seat.river_wm = obj;
     // river_seat_v1_add_listener(seat->obj, &river_seat_listener, seat);
 }
 
