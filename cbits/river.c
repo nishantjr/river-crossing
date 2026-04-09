@@ -1,8 +1,5 @@
 #include "river.h"
 
-#include <river-window-management-v1-client.h>
-#include <river-xkb-bindings-v1-client.h>
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +18,10 @@
 // code.
 
 static struct wl_list event_queue = {0};
+
+void init_event_queue() {
+    wl_list_init(&event_queue);
+}
 
 // Allocates and adds a new event in the queue; initialized to null.
 struct wxyz_event* wxyz_new_event() {
@@ -128,11 +129,19 @@ static const struct river_window_manager_v1_listener wm_listener = {
 
 // Given a connection to a Wayland display, we connect to the registry
 // and obtain handles to the river protocols we need.
+// Since the whole use of C callbacks is awkward, this code is a bit ugly.
+// Fortunately it is only needed during set up. Hopefully we will get around
+// to writing a Wayland scanner and get rid of the need for this.
 
 struct river_window_manager_v1 *window_manager_v1 = NULL;
+
+struct river_window_manager_v1* get_river_window_manager() { return window_manager_v1; }
+
+void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1) {
+    river_window_manager_v1_add_listener(window_manager_v1, &wm_listener, NULL);
+}
 struct river_xkb_bindings_v1 *xkb_bindings_v1 = NULL;
 
-extern const struct river_window_manager_v1_listener wm_listener;
 
 static void handle_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version)
@@ -152,23 +161,13 @@ static const struct wl_registry_listener registry_listener = {
     .global_remove = handle_registry_global_remove,
 };
 
-bool await_river_protocols(struct wl_display* display) {
+bool await_registry(struct wl_display* display) {
     struct wl_registry *registry = wl_display_get_registry(display);
     wl_registry_add_listener(registry, &registry_listener, NULL);
     if (wl_display_roundtrip(display) < 0) {
         fprintf(stderr, "roundtrip failed\n");
         return false;
     }
-
-    if (window_manager_v1 == NULL || xkb_bindings_v1 == NULL) {
-        fprintf(stderr,
-                "river_window_manager_v1 or river_xkb_bindings_v1 "
-                "not supported by the Wayland server\n");
-        return false;
-    }
-
-    river_window_manager_v1_add_listener(window_manager_v1, &wm_listener, NULL);
-    wl_list_init(&event_queue);
     return true;
 }
 

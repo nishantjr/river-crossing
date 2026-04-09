@@ -2,9 +2,12 @@
 
 module WXYZ.Wayland
     ( wlDisplayConnect
-    , awaitRiverProtocols
+    , awaitRegistry
+    , initEventQueue
     , next_event
     , Event(..)
+    , getRiverWM
+    , riverWMAddEventListeners
     )
   where
 
@@ -31,22 +34,24 @@ foreign import capi "wayland-client-core.h wl_display_connect"
     _wl_display_connect :: CString -> IO WlDisplay
 
 
-awaitRiverProtocols :: WlDisplay -> IO Bool
+awaitRegistry :: WlDisplay -> IO Bool
 -- ^ Given a connection to a Wayland display, obtain handles to the river
 -- protocols needed. These are stored as globals on the C-side, since we want a
 -- higher-level representation on the Haskell side---i.e. as an event stream rather
 -- than callbacks.
 
-awaitRiverProtocols dpy = do cbool <- _await_river_protocols dpy
-                             putStrLn $ show cbool
-                             pure $ cbool /= 0
+awaitRegistry dpy =
+    do cbool <- _await_registry dpy
+       putStrLn $ show cbool
+       pure $ cbool /= 0
 
-foreign import capi "cbits/river.h await_river_protocols"
-    _await_river_protocols :: WlDisplay -> IO CBool
+foreign import capi "cbits/river.h await_registry"
+    _await_registry :: WlDisplay -> IO CBool
 
-data CRiverWindow;  type RiverWindow = Ptr CRiverWindow
-data CRiverOutput;  type RiverOutput = Ptr CRiverOutput
-data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat
+data CRiverWM;      type RiverWM     = Ptr CRiverWM     -- ^ river_window_manager_v1
+data CRiverWindow;  type RiverWindow = Ptr CRiverWindow -- ^ river_window_v1
+data CRiverOutput;  type RiverOutput = Ptr CRiverOutput -- ^ river_output_v1
+data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat   -- ^ river_seat_v1
 
 data Event = WMUnavailable
            | WMFinished
@@ -61,6 +66,15 @@ data Event = WMUnavailable
 
 
 #include "cbits/river.h"
+
+foreign import capi "cbits/river.h init_event_queue"
+    initEventQueue :: IO ()
+
+foreign import capi "cbits/river.h get_river_window_manager"
+    getRiverWM :: IO RiverWM
+
+foreign import capi "cbits/river.h river_wm_add_event_listeners"
+    riverWMAddEventListeners :: RiverWM -> IO ()
 
 foreign import capi "cbits/river.h wxyz_next_event"
     _wxyz_next_event :: WlDisplay -> IO (Ptr Event)

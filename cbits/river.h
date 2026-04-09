@@ -1,8 +1,10 @@
 #pragma once
 
 #include <wayland-client-core.h>
+#include <river-window-management-v1-client.h>
+#include <river-xkb-bindings-v1-client.h>
 
-bool await_river_protocols(struct wl_display* display);
+bool await_registry(struct wl_display* display);
 
 enum wxyz_event_type {
     WM_UNAVAILABLE,
@@ -43,3 +45,7 @@ struct wxyz_event {
 };
 
 struct wxyz_event* wxyz_next_event(struct wl_display* display);
+
+void init_event_queue();
+struct river_window_manager_v1*  get_river_window_manager();
+void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1);
