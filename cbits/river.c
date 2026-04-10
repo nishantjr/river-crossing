@@ -12,7 +12,7 @@
 // Callback back based bindings don't make much sense in Haskell.
 // A more natural representation is a queue of events.
 // This would also simplify testing.
- 
+
 // If we had a Haskell scanner for wayland protocols, this would be straight
 // forward to do. Instead, we shoe-horn this on top of the C callback based
 // code.
@@ -47,6 +47,157 @@ struct wxyz_event* wxyz_next_event(struct wl_display* display)
     }
     return NULL;
 }
+
+// Window Callbacks
+// ----------------
+
+static void window_handle_closed(void *data, struct river_window_v1 *window)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_CLOSED;
+    event->window_closed.window = window;
+}
+
+static void window_handle_dimensions( void *data, struct river_window_v1 *window, int32_t width, int32_t height)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_DIMENSIONS;
+    event->window_dimensions.window = window;
+}
+
+static void window_handle_pointer_move_requested( void *data, struct river_window_v1 *window, struct river_seat_v1 *river_seat)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_POINTER_MOVE_REQUESTED;
+    event->window_pointer_move_requested.window = window;
+}
+
+static void window_handle_pointer_resize_requested( void *data, struct river_window_v1 *window, struct river_seat_v1 *river_seat, uint32_t edges)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_POINTER_RESIZE_REQUESTED;
+    event->window_pointer_resize_requested.window = window;
+}
+
+static void window_handle_dimensions_hint(void *data, struct river_window_v1 *window, int32_t min_width, int32_t min_height, int32_t max_width, int32_t max_height)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_DIMENSIONS_HINT;
+    event->window_dimensions_hint.window = window;
+}
+
+static void window_handle_app_id(void *data, struct river_window_v1 *window, const char *app_id)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_APP_ID;
+    event->window_app_id.window = window;
+}
+
+static void window_handle_title(void *data, struct river_window_v1 *window, const char *title)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_TITLE;
+    event->window_title.window = window;
+}
+
+static void window_handle_parent(void *data, struct river_window_v1 *window, struct river_window_v1 *parent)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_PARENT;
+    event->window_parent.window = window;
+}
+
+static void window_handle_decoration_hint(void *data, struct river_window_v1 *window, uint32_t hint)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_DECORATION_HINT;
+    event->window_decoration_hint.window = window;
+}
+
+static void window_handle_show_window_menu_requested(void *data, struct river_window_v1 *window, int32_t x, int32_t y)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_SHOW_WINDOW_MENU_REQUESTED;
+    event->window_show_window_menu_requested.window = window;
+}
+
+static void window_handle_maximize_requested(void *data, struct river_window_v1 *window)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_MAXIMIZE_REQUESTED;
+    event->window_maximize_requested.window = window;
+}
+
+static void window_handle_unmaximize_requested(void *data, struct river_window_v1 *window)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_UNMAXIMIZE_REQUESTED;
+    event->window_unmaximize_requested.window = window;
+}
+
+static void window_handle_fullscreen_requested(void *data, struct river_window_v1 *window, struct river_output_v1 *river_output)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_FULLSCREEN_REQUESTED;
+    event->window_fullscreen_requested.window = window;
+}
+
+static void window_handle_exit_fullscreen_requested(void *data, struct river_window_v1 *window)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_EXIT_FULLSCREEN_REQUESTED;
+    event->window_exit_fullscreen_requested.window = window;
+}
+
+static void window_handle_minimize_requested(void *data, struct river_window_v1 *window)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_MINIMIZE_REQUESTED;
+    event->window_minimize_requested.window = window;
+}
+
+static void window_handle_unreliable_pid(void *data, struct river_window_v1 *window, int32_t unreliable_pid)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_UNRELIABLE_PID;
+    event->window_unreliable_pid.window = window;
+}
+
+static void window_handle_presentation_hint(void *data, struct river_window_v1 *window, uint32_t hint)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_PRESENTATION_HINT;
+    event->window_presentation_hint.window = window;
+}
+
+static void window_handle_identifier(void *data, struct river_window_v1 *window, const char *indentifier)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = WINDOW_IDENTIFIER;
+    event->window_identifier.window = window;
+}
+
+const struct river_window_v1_listener river_window_listener = {
+	.closed = window_handle_closed,
+	.dimensions_hint = window_handle_dimensions_hint,
+	.dimensions = window_handle_dimensions,
+	.app_id = window_handle_app_id,
+	.title = window_handle_title,
+	.parent = window_handle_parent,
+	.decoration_hint = window_handle_decoration_hint,
+	.pointer_move_requested = window_handle_pointer_move_requested,
+	.pointer_resize_requested = window_handle_pointer_resize_requested,
+	.show_window_menu_requested = window_handle_show_window_menu_requested,
+	.maximize_requested = window_handle_maximize_requested,
+	.unmaximize_requested = window_handle_unmaximize_requested,
+	.fullscreen_requested = window_handle_fullscreen_requested,
+	.exit_fullscreen_requested = window_handle_exit_fullscreen_requested,
+	.minimize_requested = window_handle_minimize_requested,
+	.unreliable_pid = window_handle_unreliable_pid,
+	.presentation_hint = window_handle_presentation_hint,
+	.identifier = window_handle_identifier,
+};
+
 
 // Window Manager Callbacks
 // ------------------------
@@ -94,12 +245,13 @@ static void wm_handle_session_unlocked(void *data, struct river_window_manager_v
 }
 
 static void wm_handle_window(
-    void *data, struct river_window_manager_v1 *obj, struct river_window_v1 *river_window)
+    void *data, struct river_window_manager_v1 *wm, struct river_window_v1 *river_window)
 {
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_WINDOW;
-    wx_event->wm_window.river_wm = obj;
-    // river_window_v1_add_listener(window->obj, &river_window_listener, window);
+    wx_event->wm_window.river_wm = wm;
+    wx_event->wm_window.window = river_window;
+    river_window_v1_add_listener(river_window, &river_window_listener, NULL);
 }
 
 static void wm_handle_output(

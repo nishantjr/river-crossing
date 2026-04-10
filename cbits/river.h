@@ -16,6 +16,25 @@ enum wxyz_event_type {
     WM_WINDOW,
     WM_OUTPUT,
     WM_SEAT,
+
+    WINDOW_CLOSED,
+    WINDOW_DIMENSIONS_HINT,
+    WINDOW_DIMENSIONS,
+    WINDOW_APP_ID,
+    WINDOW_TITLE,
+    WINDOW_PARENT,
+    WINDOW_DECORATION_HINT,
+    WINDOW_POINTER_MOVE_REQUESTED,
+    WINDOW_POINTER_RESIZE_REQUESTED,
+    WINDOW_SHOW_WINDOW_MENU_REQUESTED,
+    WINDOW_MAXIMIZE_REQUESTED,
+    WINDOW_UNMAXIMIZE_REQUESTED,
+    WINDOW_FULLSCREEN_REQUESTED,
+    WINDOW_EXIT_FULLSCREEN_REQUESTED,
+    WINDOW_MINIMIZE_REQUESTED,
+    WINDOW_UNRELIABLE_PID,
+    WINDOW_PRESENTATION_HINT,
+    WINDOW_IDENTIFIER,
 };
 
 struct wm_unavailable      { struct river_window_manager_v1* river_wm; };
@@ -27,6 +46,25 @@ struct wm_session_unlocked { struct river_window_manager_v1* river_wm; };
 struct wm_window           { struct river_window_manager_v1* river_wm; struct river_window_v1 *window; };
 struct wm_output           { struct river_window_manager_v1* river_wm; struct river_output_v1 *output; };
 struct wm_seat             { struct river_window_manager_v1* river_wm; struct river_seat_v1   *seat; };
+
+struct window_closed                        { struct river_window_v1* window; };
+struct window_dimensions_hint               { struct river_window_v1* window; };
+struct window_dimensions                    { struct river_window_v1* window; };
+struct window_app_id                        { struct river_window_v1* window; };
+struct window_title                         { struct river_window_v1* window; };
+struct window_parent                        { struct river_window_v1* window; };
+struct window_decoration_hint               { struct river_window_v1* window; };
+struct window_pointer_move_requested        { struct river_window_v1* window; };
+struct window_pointer_resize_requested      { struct river_window_v1* window; };
+struct window_show_window_menu_requested    { struct river_window_v1* window; };
+struct window_maximize_requested            { struct river_window_v1* window; };
+struct window_unmaximize_requested          { struct river_window_v1* window; };
+struct window_fullscreen_requested          { struct river_window_v1* window; };
+struct window_exit_fullscreen_requested     { struct river_window_v1* window; };
+struct window_minimize_requested            { struct river_window_v1* window; };
+struct window_unreliable_pid                { struct river_window_v1* window; };
+struct window_presentation_hint             { struct river_window_v1* window; };
+struct window_identifier                    { struct river_window_v1* window; };
 
 struct wxyz_event {
     struct wl_list link;
@@ -41,6 +79,25 @@ struct wxyz_event {
         struct wm_window            wm_window;
         struct wm_output            wm_output;
         struct wm_seat              wm_seat;
+
+        struct window_closed                     window_closed;
+        struct window_dimensions_hint            window_dimensions_hint;
+        struct window_dimensions                 window_dimensions;
+        struct window_app_id                     window_app_id;
+        struct window_title                      window_title;
+        struct window_parent                     window_parent;
+        struct window_decoration_hint            window_decoration_hint;
+        struct window_pointer_move_requested     window_pointer_move_requested;
+        struct window_pointer_resize_requested   window_pointer_resize_requested;
+        struct window_show_window_menu_requested window_show_window_menu_requested;
+        struct window_maximize_requested         window_maximize_requested;
+        struct window_unmaximize_requested       window_unmaximize_requested;
+        struct window_fullscreen_requested       window_fullscreen_requested;
+        struct window_exit_fullscreen_requested  window_exit_fullscreen_requested;
+        struct window_minimize_requested         window_minimize_requested;
+        struct window_unreliable_pid             window_unreliable_pid;
+        struct window_presentation_hint          window_presentation_hint;
+        struct window_identifier                 window_identifier;
     };
 };
 

@@ -27,6 +27,7 @@ eventLoop display =
 handleEvent :: Event -> IO [Request]
 handleEvent (WMManageStart wm) = pure [(WMManageFinish wm)]
 handleEvent (WMRenderStart wm) = pure [(WMRenderFinish wm)]
+
 handleEvent e
     = do putStrLn $ "unhandled event: " ++ (show e)
          pure []

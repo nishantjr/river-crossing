@@ -53,19 +53,39 @@ foreign import capi "cbits/river.h await_registry"
 
 data CRiverWM;      type RiverWM     = Ptr CRiverWM     -- ^ river_window_manager_v1
 data CRiverWindow;  type RiverWindow = Ptr CRiverWindow -- ^ river_window_v1
+data CRiverNode;    type RiverNode   = Ptr CRiverNode   -- ^ river_node_v1
 data CRiverOutput;  type RiverOutput = Ptr CRiverOutput -- ^ river_output_v1
 data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat   -- ^ river_seat_v1
 
 -- | Events from the river_window_management_v1 protocol
-data Event = WMUnavailable RiverWM
-           | WMFinished RiverWM
-           | WMManageStart RiverWM
-           | WMRenderStart RiverWM
-           | WMSessionLocked RiverWM
-           | WMSessionUnlocked RiverWM
-           | WMWindow RiverWM RiverWindow
-           | WMOutput RiverWM RiverOutput
-           | WMSeat RiverWM RiverSeat
+data Event = WMUnavailable                  RiverWM
+           | WMFinished                     RiverWM
+           | WMManageStart                  RiverWM
+           | WMRenderStart                  RiverWM
+           | WMSessionLocked                RiverWM
+           | WMSessionUnlocked              RiverWM
+           | WMWindow                       RiverWM RiverWindow
+           | WMOutput                       RiverWM RiverOutput
+           | WMSeat                         RiverWM RiverSeat
+
+           | WindowClosed                   RiverWindow
+           | WindowDimensionsHint           RiverWindow
+           | WindowDimensions               RiverWindow
+           | WindowAppId                    RiverWindow
+           | WindowTitle                    RiverWindow
+           | WindowParent                   RiverWindow
+           | WindowDecorationHint           RiverWindow
+           | WindowPointerMoveRequested     RiverWindow
+           | WindowPointerResizeRequested   RiverWindow
+           | WindowShowWindowMenuRequested  RiverWindow
+           | WindowMaximizeRequested        RiverWindow
+           | WindowUnmaximizeRequested      RiverWindow
+           | WindowFullscreenRequested      RiverWindow
+           | WindowExitFullscreenRequested  RiverWindow
+           | WindowMinimizeRequested        RiverWindow
+           | WindowUnreliablePid            RiverWindow
+           | WindowPresentationHint         RiverWindow
+           | WindowIdentifier               RiverWindow
     deriving Show
 
 -- | Requests from the river_window_management_v1 protocol
@@ -129,6 +149,63 @@ next_event display =
              seat <- (#{peek struct wxyz_event, wm_seat.seat} ptr)
              pure $ Just (WMSeat wm seat)
 
+    unparse #{const WINDOW_CLOSED} ptr
+        = do window <- (#{peek struct wxyz_event, window_closed.window} ptr)
+             pure $ Just (WindowClosed window)
+    unparse #{const WINDOW_DIMENSIONS_HINT} ptr
+        = do window <- (#{peek struct wxyz_event, window_dimensions_hint.window} ptr)
+             pure $ Just (WindowDimensionsHint window)
+    unparse #{const WINDOW_DIMENSIONS} ptr
+        = do window <- (#{peek struct wxyz_event, window_dimensions.window} ptr)
+             pure $ Just (WindowDimensions window)
+    unparse #{const WINDOW_APP_ID} ptr
+        = do window <- (#{peek struct wxyz_event, window_app_id.window} ptr)
+             pure $ Just (WindowAppId window)
+    unparse #{const WINDOW_TITLE} ptr
+        = do window <- (#{peek struct wxyz_event, window_title.window} ptr)
+             pure $ Just (WindowTitle window)
+    unparse #{const WINDOW_PARENT} ptr
+        = do window <- (#{peek struct wxyz_event, window_parent.window} ptr)
+             pure $ Just (WindowParent window)
+    unparse #{const WINDOW_DECORATION_HINT} ptr
+        = do window <- (#{peek struct wxyz_event, window_decoration_hint.window} ptr)
+             pure $ Just (WindowDecorationHint window)
+    unparse #{const WINDOW_POINTER_MOVE_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_pointer_move_requested.window} ptr)
+             pure $ Just (WindowPointerMoveRequested window)
+    unparse #{const WINDOW_POINTER_RESIZE_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_pointer_resize_requested.window} ptr)
+             pure $ Just (WindowPointerResizeRequested window)
+    unparse #{const WINDOW_SHOW_WINDOW_MENU_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_show_window_menu_requested.window} ptr)
+             pure $ Just (WindowShowWindowMenuRequested window)
+    unparse #{const WINDOW_MAXIMIZE_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_maximize_requested.window} ptr)
+             pure $ Just (WindowMaximizeRequested window)
+    unparse #{const WINDOW_UNMAXIMIZE_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_unmaximize_requested.window} ptr)
+             pure $ Just (WindowUnmaximizeRequested window)
+    unparse #{const WINDOW_FULLSCREEN_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_fullscreen_requested.window} ptr)
+             pure $ Just (WindowFullscreenRequested window)
+    unparse #{const WINDOW_EXIT_FULLSCREEN_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_exit_fullscreen_requested.window} ptr)
+             pure $ Just (WindowExitFullscreenRequested window)
+    unparse #{const WINDOW_MINIMIZE_REQUESTED} ptr
+        = do window <- (#{peek struct wxyz_event, window_minimize_requested.window} ptr)
+             pure $ Just (WindowMinimizeRequested window)
+    unparse #{const WINDOW_UNRELIABLE_PID} ptr
+        = do window <- (#{peek struct wxyz_event, window_unreliable_pid.window} ptr)
+             pure $ Just (WindowUnreliablePid window)
+    unparse #{const WINDOW_PRESENTATION_HINT} ptr
+        = do window <- (#{peek struct wxyz_event, window_presentation_hint.window} ptr)
+             pure $ Just (WindowPresentationHint window)
+    unparse #{const WINDOW_IDENTIFIER} ptr
+        = do window <- (#{peek struct wxyz_event, window_identifier.window} ptr)
+             pure $ Just (WindowIdentifier window)
+
+
+
     unparse e _
         = error $ "Unknown event type: " ++ (show e)
 
@@ -144,7 +221,7 @@ foreign import capi "river-window-management-v1-client.h river_window_manager_v1
 
 sendRequest :: WlDisplay -> Request -> IO ()
 -- ^ Send a request to River
-sendRequest dpy request = case request of
+sendRequest _dpy request = case request of
     (WMManageFinish rwm)    -> _river_window_manager_v1_manage_finish rwm
     (WMManageDirty rwm)     -> _river_window_manager_v1_manage_dirty rwm
     (WMRenderFinish rwm)    -> _river_window_manager_v1_render_finish rwm
