@@ -1,6 +1,13 @@
 module Main (main) where
 
-import WXYZ.Wayland
+import           WXYZ.Wayland
+
+import           Control.Monad (void)
+import           Control.Monad.State
+
+data WXYZWindow = WXYZWindow RiverWindow RiverNode
+data WXYZState = WXYZState { windows :: [WXYZWindow] }
+type WXYZ a = StateT WXYZState IO a
 
 main :: IO ()
 main = do Just display <- wlDisplayConnect -- TODO: This should print an
@@ -13,21 +20,30 @@ main = do Just display <- wlDisplayConnect -- TODO: This should print an
                                         -- OK to rely on matching failure.
           riverWM <- getRiverWM
           riverWMAddEventListeners riverWM
-          eventLoop display
+          void $ runStateT (eventLoop display) (WXYZState [])
 
-eventLoop :: WlDisplay -> IO ()
+eventLoop :: WlDisplay -> WXYZ ()
 eventLoop display =
-    do e <- next_event display
+    do e <- liftIO $ next_event display
        case e of
          Nothing -> pure ()
          Just e' -> do requests <- handleEvent e'
-                       _ <- mapM (sendRequest display) requests
+                       _ <- liftIO $ mapM (sendRequest display) requests
                        eventLoop display
 
-handleEvent :: Event -> IO [Request]
-handleEvent (WMManageStart wm) = pure [(WMManageFinish wm)]
+handleEvent :: Event -> WXYZ [Request]
+handleEvent (WMManageStart wm)
+    = pure [(WMManageFinish wm)]
 handleEvent (WMRenderStart wm) = pure [(WMRenderFinish wm)]
 
+handleEvent (WMWindow _wm win)
+    = do st <- get
+         let node = riverWindowGetNode win
+         put (WXYZState $ (windows st) ++ [WXYZWindow win $ riverWindowGetNode win])
+         pure [ (NodeSetPosition node 0 0)
+              , (WindowProposeDimensions win 0 0)
+              ]
+
 handleEvent e
-    = do putStrLn $ "unhandled event: " ++ (show e)
+    = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
          pure []

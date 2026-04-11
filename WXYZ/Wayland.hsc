@@ -8,9 +8,15 @@ module WXYZ.Wayland
     , sendRequest
     , getRiverWM
     , riverWMAddEventListeners
+    , riverWindowGetNode
     , WlDisplay
     , Event(..)
     , Request(..)
+    , RiverWM
+    , RiverWindow
+    , RiverNode
+    , RiverOutput
+    , RiverSeat
     )
   where
 
@@ -92,6 +98,10 @@ data Event = WMUnavailable                  RiverWM
 data Request = WMManageFinish RiverWM
              | WMManageDirty RiverWM
              | WMRenderFinish RiverWM
+
+             | NodeSetPosition RiverNode Word32 Word32
+
+             | WindowProposeDimensions RiverWindow Word32 Word32
 
 #include "cbits/river.h"
 
@@ -217,12 +227,26 @@ foreign import capi "river-window-management-v1-client.h river_window_manager_v1
 foreign import capi "river-window-management-v1-client.h river_window_manager_v1_render_finish"
     _river_window_manager_v1_render_finish :: RiverWM -> IO ()
 
-
+foreign import capi "river-window-management-v1-client.h river_node_v1_set_position"
+    _river_node_v1_set_position :: RiverNode -> Word32 -> Word32 -> IO ()
+foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
+    _river_window_v1_propose_dimensions:: RiverWindow -> Word32 -> Word32 -> IO ()
 
 sendRequest :: WlDisplay -> Request -> IO ()
--- ^ Send a request to River
 sendRequest _dpy request = case request of
     (WMManageFinish rwm)    -> _river_window_manager_v1_manage_finish rwm
     (WMManageDirty rwm)     -> _river_window_manager_v1_manage_dirty rwm
     (WMRenderFinish rwm)    -> _river_window_manager_v1_render_finish rwm
+
+    (NodeSetPosition node x y) ->  _river_node_v1_set_position node x y
+
+    (WindowProposeDimensions window w h) ->  _river_window_v1_propose_dimensions window w h
+
+
+-- | Requests that have `new_id` are a bit weird, because their not purely a request.
+-- They also need to generate a fresh id on the client before sending the request.
+-- it is therefore stateful. We'll need a Haskell scanner to generate a clean
+-- interface for this.
+foreign import capi "river-window-management-v1-client.h river_window_v1_get_node"
+    riverWindowGetNode :: RiverWindow -> RiverNode
 
