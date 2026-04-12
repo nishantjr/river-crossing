@@ -48,6 +48,44 @@ struct wxyz_event* wxyz_next_event(struct wl_display* display)
     return NULL;
 }
 
+// Output Callbacks
+// ----------------
+
+static void output_handle_removed(void *data, struct river_output_v1 *output)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = OUTPUT_REMOVED;
+    event->output_removed.output = output;
+}
+static void output_handle_wl_output(void *data, struct river_output_v1 *output, uint32_t name)
+{
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = OUTPUT_WL_OUTPUT;
+    event->output_wl_output.output = output;
+}
+static void output_handle_position(void *data, struct river_output_v1 *output, int32_t x, int32_t y) {
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = OUTPUT_POSITION;
+    event->output_position.output = output;
+    event->output_position.x = x;
+    event->output_position.y = y;
+}
+static void output_handle_dimensions(void *data, struct river_output_v1 *output, int32_t width, int32_t height) {
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = OUTPUT_DIMENSIONS;
+    event->output_dimensions.output = output;
+    event->output_dimensions.width = width;
+    event->output_dimensions.height = height;
+}
+
+const struct river_output_v1_listener river_output_listener = {
+	.removed = output_handle_removed,
+	.wl_output = output_handle_wl_output,
+	.position = output_handle_position,
+	.dimensions = output_handle_dimensions,
+};
+
+
 // Window Callbacks
 // ----------------
 
@@ -260,7 +298,7 @@ static void wm_handle_output(
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_OUTPUT;
     wx_event->wm_output.river_wm = obj;
-    // river_output_v1_add_listener(output->obj, &river_output_listener, output);
+    river_output_v1_add_listener(river_output, &river_output_listener, NULL);
 }
 
 static void wm_handle_seat(

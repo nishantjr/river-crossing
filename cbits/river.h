@@ -35,6 +35,11 @@ enum wxyz_event_type {
     WINDOW_UNRELIABLE_PID,
     WINDOW_PRESENTATION_HINT,
     WINDOW_IDENTIFIER,
+
+    OUTPUT_REMOVED,
+    OUTPUT_WL_OUTPUT,
+    OUTPUT_POSITION,
+    OUTPUT_DIMENSIONS,
 };
 
 struct wm_unavailable      { struct river_window_manager_v1* river_wm; };
@@ -65,6 +70,11 @@ struct window_minimize_requested            { struct river_window_v1* window; };
 struct window_unreliable_pid                { struct river_window_v1* window; };
 struct window_presentation_hint             { struct river_window_v1* window; };
 struct window_identifier                    { struct river_window_v1* window; };
+
+struct output_removed                       { struct river_output_v1* output; };
+struct output_wl_output                     { struct river_output_v1* output; uint32_t name; };
+struct output_position                      { struct river_output_v1* output; int32_t x; int32_t y; };
+struct output_dimensions                    { struct river_output_v1* output; int32_t width; int32_t height; };
 
 struct wxyz_event {
     struct wl_list link;
@@ -98,6 +108,11 @@ struct wxyz_event {
         struct window_unreliable_pid             window_unreliable_pid;
         struct window_presentation_hint          window_presentation_hint;
         struct window_identifier                 window_identifier;
+
+        struct output_removed       output_removed;
+        struct output_wl_output     output_wl_output;
+        struct output_position      output_position;
+        struct output_dimensions    output_dimensions;
     };
 };
 

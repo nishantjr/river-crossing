@@ -21,6 +21,7 @@ module WXYZ.Wayland
   where
 
 import           Data.Word
+import           Data.Int (Int32)
 import           Foreign.C.String (CString)
 import           Foreign.C.Types (CBool(..))
 import           Foreign.Marshal.Alloc (free)
@@ -92,6 +93,12 @@ data Event = WMUnavailable                  RiverWM
            | WindowUnreliablePid            RiverWindow
            | WindowPresentationHint         RiverWindow
            | WindowIdentifier               RiverWindow
+
+           | OutputRemoved                  RiverOutput
+           | OutputWlOutput                 RiverOutput Word32
+           | OutputPosition                 RiverOutput Int32 Int32
+           | OutputDimensions               RiverOutput Int32 Int32
+
     deriving Show
 
 -- | Requests from the river_window_management_v1 protocol
@@ -214,7 +221,23 @@ next_event display =
         = do window <- (#{peek struct wxyz_event, window_identifier.window} ptr)
              pure $ Just (WindowIdentifier window)
 
-
+    unparse #{const OUTPUT_REMOVED} ptr
+        = do output <- (#{peek struct wxyz_event, output_removed.output} ptr)
+             pure $ Just (OutputRemoved output)
+    unparse #{const OUTPUT_WL_OUTPUT} ptr
+        = do output <- (#{peek struct wxyz_event, output_wl_output.output} ptr)
+             name <- (#{peek struct wxyz_event, output_wl_output.name} ptr)
+             pure $ Just (OutputWlOutput output name)
+    unparse #{const OUTPUT_POSITION} ptr
+        = do output <- (#{peek struct wxyz_event, output_position.output} ptr)
+             x <- (#{peek struct wxyz_event, output_position.x} ptr)
+             y <- (#{peek struct wxyz_event, output_position.y} ptr)
+             pure $ Just (OutputPosition output x y)
+    unparse #{const OUTPUT_DIMENSIONS} ptr
+        = do output <- (#{peek struct wxyz_event, output_dimensions.output} ptr)
+             width <- (#{peek struct wxyz_event, output_dimensions.width} ptr)
+             height <- (#{peek struct wxyz_event, output_dimensions.height} ptr)
+             pure $ Just (OutputDimensions output width height)
 
     unparse e _
         = error $ "Unknown event type: " ++ (show e)
