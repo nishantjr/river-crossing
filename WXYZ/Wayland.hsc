@@ -121,8 +121,9 @@ foreign import capi "cbits/river.h get_river_window_manager"
 foreign import capi "cbits/river.h river_wm_add_event_listeners"
     riverWMAddEventListeners :: RiverWM -> IO ()
 
+data CEvent
 foreign import capi "cbits/river.h wxyz_next_event"
-    _wxyz_next_event :: WlDisplay -> IO (Ptr Event)
+    _wxyz_next_event :: WlDisplay -> IO (Ptr CEvent)
 next_event :: WlDisplay -> IO (Maybe Event)
 next_event display =
   do ptr <- _wxyz_next_event display
@@ -134,7 +135,7 @@ next_event display =
              print unparsed
              pure unparsed
   where
-    unparse :: Word8 -> Ptr Event -> IO (Maybe Event)
+    unparse :: Word8 -> Ptr CEvent -> IO (Maybe Event)
     unparse #{const WM_UNAVAILABLE} ptr
         = do wm <- (#{peek struct wxyz_event, wm_unavailable.river_wm} ptr)
              pure $ Just (WMUnavailable wm)
