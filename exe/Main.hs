@@ -1,6 +1,6 @@
 module Main (main) where
 
-import           WXYZ.Wayland
+import           WXYZ.Protocol
 
 import           Control.Monad (void)
 import           Control.Monad.State

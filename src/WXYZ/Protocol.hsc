@@ -1,6 +1,6 @@
 {-# LANGUAGE CApiFFI #-}
 
-module WXYZ.Wayland
+module WXYZ.Protocol
     ( wlDisplayConnect
     , awaitRegistry
     , initEventQueue

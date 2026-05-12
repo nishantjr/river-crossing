@@ -18,8 +18,8 @@ common warnings
 
 library
     import:           warnings
-    hs-source-dirs:   .
-    exposed-modules:  WXYZ.Wayland
+    hs-source-dirs:   src/
+    exposed-modules:  WXYZ.Protocol
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c,
