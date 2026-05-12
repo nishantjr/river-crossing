@@ -23,5 +23,6 @@ build_protocol_headers() {
 }
 
 build_protocol_headers
-cabal "$@"
+cabal build
+cabal test
 echo Done.
