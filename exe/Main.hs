@@ -1,3 +1,7 @@
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# OPTIONS -Wno-unused-top-binds #-} -- Record fields
+
 module Main (main) where
 
 import           WXYZ.Protocol
@@ -6,16 +10,28 @@ import           Control.Monad (void)
 import           Control.Monad.State
 import           Control.Monad.Extra (fromMaybeM)
 import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Data.Int (Int32)
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Data.Word
 
 
-data Window = Window { window :: RiverWindow
+data Window = Window { handle :: RiverWindow
                      , node   :: RiverNode
                      }
 
+data Position   = Position { x :: Int32, y :: Int32 }
+data Dimensions = Dimensions { width :: Int32, height :: Int32 }
+data Output = Output { handle :: RiverOutput
+                     , wlOutput :: Maybe Word32
+                     , position :: Maybe Position
+                     , dimensions :: Maybe Dimensions
+                     }
+
 -- Cache of River's Window Management state
-data RiverState = RiverState { windows :: Map RiverWindow Window }
+data RiverState = RiverState { windows :: Map RiverWindow Window
+                             , outputs :: Map RiverOutput Output
+                             }
 
 -- immutable configuration.
 data WXYZConfig = WXYZConfig {
@@ -37,7 +53,7 @@ runWXYZ config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
-         void $ runStateT (eventLoop display) (RiverState M.empty)
+         void $ runStateT (eventLoop display) (RiverState M.empty M.empty)
   where
     eventLoop :: WlDisplay -> WXYZ ()
     eventLoop display =
@@ -82,6 +98,25 @@ cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
        put $ st { windows = M.delete win (windows st) }
        pure []
+
+cacheRiverState (WMOutput _wm output) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (outputs st) }
+       pure [ ]
+cacheRiverState (OutputRemoved output) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.delete output (outputs st) }
+       pure []
+cacheRiverState (OutputPosition output x y) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
+       pure []
+cacheRiverState (OutputDimensions output width height) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
+       pure []
+
+
 cacheRiverState _ = pure Nothing
 
 ---
