@@ -13,6 +13,7 @@ import           Control.Monad.Trans.Maybe (runMaybeT)
 import           Data.Int (Int32)
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Data.Maybe (fromMaybe)
 import           Data.Word
 import qualified System.Process as P
 
@@ -46,9 +47,29 @@ data RiverState = RiverState { windows :: Map RiverWindow Window
     deriving (Show)
 
 
+
 manageAndRender :: Event -> WXYZ (Maybe [Request])
-manageAndRender (WMManageStart wm) = runMaybeT $ pure [(WMManageFinish wm)]
-manageAndRender (WMRenderStart wm) = runMaybeT $ pure [(WMRenderFinish wm)]
+manageAndRender (WMManageStart wm) = runMaybeT $
+    do wins <- windows <$> get
+       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
+       let height = (fromMaybe (Dimensions 0 0) firstOutput.dimensions).height
+       let dims = map (winProposeDimensions width height (fromIntegral $ length wins))  (M.keys wins)
+       pure $ dims ++ [ (WMManageFinish wm) ]
+  where
+    winProposeDimensions outputWidth outputHeight numWins handle
+        = (WindowProposeDimensions handle (outputWidth `div` numWins) outputHeight)
+
+manageAndRender (WMRenderStart wm) = runMaybeT $
+    do wins <- windows <$> get
+       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
+       let xxx = map (winSetPosition width (fromIntegral $ length wins))  (zip [0..] $ M.elems wins)
+       pure $ xxx ++ [ (WMRenderFinish wm) ]
+  where
+    winSetPosition outputWidth numWins (index, win)
+        = (NodeSetPosition (win.node) (index * outputWidth `div` numWins) 0)
+
 manageAndRender _ = pure Nothing
 
 cacheRiverState :: Event -> WXYZ (Maybe [Request])
@@ -56,9 +77,7 @@ cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
        put $ st { windows = M.insert win (Window win node) (windows st) }
-       pure [ (NodeSetPosition node 0 0)
-            , (WindowProposeDimensions win 0 0)
-            ]
+       pure []
 cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
        put $ st { windows = M.delete win (windows st) }
@@ -134,11 +153,9 @@ runWXYZ config
                            st <- get
                            liftIO $ putStrLn $ (show st) ++ "\n\n"
                            eventLoop display
-
     unhandledEvent e
         = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
              pure []
-
 
 (<||>) ::    (Event -> WXYZ (Maybe [Request]))
           -> (Event -> WXYZ (Maybe [Request]))
