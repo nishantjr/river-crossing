@@ -99,6 +99,8 @@ data Event = WMUnavailable                  RiverWM
            | OutputPosition                 RiverOutput Int32 Int32
            | OutputDimensions               RiverOutput Int32 Int32
 
+           | SeatRemoved                    RiverSeat
+
     deriving Show
 
 -- | Requests from the river_window_management_v1 protocol

@@ -40,6 +40,8 @@ enum wxyz_event_type {
     OUTPUT_WL_OUTPUT,
     OUTPUT_POSITION,
     OUTPUT_DIMENSIONS,
+
+    SEAT_REMOVED,
 };
 
 struct wm_unavailable      { struct river_window_manager_v1* river_wm; };
@@ -75,6 +77,8 @@ struct output_removed                       { struct river_output_v1* output; };
 struct output_wl_output                     { struct river_output_v1* output; uint32_t name; };
 struct output_position                      { struct river_output_v1* output; int32_t x; int32_t y; };
 struct output_dimensions                    { struct river_output_v1* output; int32_t width; int32_t height; };
+
+struct seat_removed                         { struct river_seat_v1* seat; };
 
 struct wxyz_event {
     struct wl_list link;
@@ -113,6 +117,8 @@ struct wxyz_event {
         struct output_wl_output     output_wl_output;
         struct output_position      output_position;
         struct output_dimensions    output_dimensions;
+
+        struct seat_removed         seat_removed;
     };
 };
 

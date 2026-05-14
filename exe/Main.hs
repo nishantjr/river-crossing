@@ -32,9 +32,13 @@ data Output = Output { handle :: RiverOutput
                      }
     deriving (Show)
 
+data Seat = Seat { handle :: RiverSeat }
+    deriving (Show)
+
 -- Cache of River's Window Management state
 data RiverState = RiverState { windows :: Map RiverWindow Window
                              , outputs :: Map RiverOutput Output
+                             , seats   :: Map RiverSeat   Seat
                              }
     deriving (Show)
 
@@ -58,7 +62,7 @@ runWXYZ config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
-         void $ runStateT (eventLoop display) (RiverState M.empty M.empty)
+         void $ runStateT (eventLoop display) (RiverState M.empty M.empty M.empty)
   where
     eventLoop :: WlDisplay -> WXYZ ()
     eventLoop display =
@@ -113,6 +117,10 @@ cacheRiverState (OutputRemoved output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.delete output (outputs st) }
        pure []
+cacheRiverState (OutputWlOutput output wl) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
+       pure []
 cacheRiverState (OutputPosition output x y) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
@@ -120,6 +128,15 @@ cacheRiverState (OutputPosition output x y) = runMaybeT $
 cacheRiverState (OutputDimensions output width height) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
+       pure []
+
+cacheRiverState (WMSeat _wm seat) = runMaybeT $
+    do st <- get
+       put $ st { seats = M.insert seat (Seat seat) (seats st) }
+       pure [ ]
+cacheRiverState (SeatRemoved seat) = runMaybeT $
+    do st <- get
+       put $ st { seats = M.delete seat (seats st) }
        pure []
 
 

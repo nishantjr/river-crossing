@@ -48,6 +48,39 @@ struct wxyz_event* wxyz_next_event(struct wl_display* display)
     return NULL;
 }
 
+
+// Seat Callbacks
+// --------------
+
+static void seat_handle_removed(void *data, struct river_seat_v1 *seat) {
+    struct wxyz_event* event = wxyz_new_event();
+    event->type = SEAT_REMOVED;
+    event->seat_removed.seat = seat;
+}
+
+// Ignored events
+static void seat_handle_pointer_enter(void *data, struct river_seat_v1 *obj, struct river_window_v1 *river_window) { }
+static void seat_handle_pointer_leave(void *data, struct river_seat_v1 *obj) { }
+static void seat_handle_window_interaction (void *data, struct river_seat_v1 *obj, struct river_window_v1 *river_window) { }
+static void seat_handle_op_delta(void *data, struct river_seat_v1 *obj, int32_t dx, int32_t dy) { }
+static void seat_handle_op_release(void *data, struct river_seat_v1 *obj) { }
+static void seat_handle_wl_seat(void *data, struct river_seat_v1 *obj, uint32_t id) {}
+static void seat_handle_shell_surface_interaction(void *data, struct river_seat_v1 *obj, struct river_shell_surface_v1 *river_shell_surface) {}
+static void seat_handle_pointer_position(void *data, struct river_seat_v1 *obj, int32_t x, int32_t y) {}
+
+const struct river_seat_v1_listener river_seat_listener = {
+    .removed = seat_handle_removed,
+    .wl_seat = seat_handle_wl_seat,
+    .pointer_enter = seat_handle_pointer_enter,
+    .pointer_leave = seat_handle_pointer_leave,
+    .window_interaction = seat_handle_window_interaction,
+    .shell_surface_interaction = seat_handle_shell_surface_interaction,
+    .op_delta = seat_handle_op_delta,
+    .op_release = seat_handle_op_release,
+    .pointer_position = seat_handle_pointer_position,
+};
+
+
 // Output Callbacks
 // ----------------
 
@@ -308,7 +341,7 @@ static void wm_handle_seat(
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_SEAT;
     wx_event->wm_seat.river_wm = obj;
-    // river_seat_v1_add_listener(seat->obj, &river_seat_listener, seat);
+    river_seat_v1_add_listener(river_seat, &river_seat_listener, NULL);
 }
 
 static const struct river_window_manager_v1_listener wm_listener = {
