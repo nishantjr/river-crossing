@@ -19,7 +19,7 @@ common warnings
 library
     import:           warnings
     hs-source-dirs:   src/
-    exposed-modules:  WXYZ.Protocol
+    exposed-modules:  WXYZ.Protocol, WXYZ.XKB
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c,

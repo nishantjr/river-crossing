@@ -122,8 +122,10 @@ struct wxyz_event {
     };
 };
 
+void init_event_queue();
 struct wxyz_event* wxyz_next_event(struct wl_display* display);
 
-void init_event_queue();
 struct river_window_manager_v1*  get_river_window_manager();
 void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1);
+
+struct river_xkb_bindings_v1* get_river_xkb_bindings();

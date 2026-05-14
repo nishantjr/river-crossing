@@ -366,14 +366,14 @@ static const struct river_window_manager_v1_listener wm_listener = {
 // Fortunately it is only needed during set up. Hopefully we will get around
 // to writing a Wayland scanner and get rid of the need for this.
 
-struct river_window_manager_v1 *window_manager_v1 = NULL;
-
+struct river_window_manager_v1* window_manager_v1 = NULL;
 struct river_window_manager_v1* get_river_window_manager() { return window_manager_v1; }
-
-void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1) {
-    river_window_manager_v1_add_listener(window_manager_v1, &wm_listener, NULL);
+void river_wm_add_event_listeners(struct river_window_manager_v1* wm) {
+    river_window_manager_v1_add_listener(wm, &wm_listener, NULL);
 }
-struct river_xkb_bindings_v1 *xkb_bindings_v1 = NULL;
+
+struct river_xkb_bindings_v1* xkb_bindings_v1 = NULL;
+struct river_xkb_bindings_v1* get_river_xkb_bindings() { return xkb_bindings_v1; }
 
 
 static void handle_registry_global(

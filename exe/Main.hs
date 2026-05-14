@@ -5,6 +5,7 @@
 module Main (main) where
 
 import           WXYZ.Protocol
+import           WXYZ.XKB
 
 import           Control.Monad (void)
 import           Control.Monad.State
@@ -121,6 +122,7 @@ cacheRiverState _ = pure Nothing
 -- immutable configuration.
 data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
                              , onStartup    :: WXYZ ()
+                             , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
                              }
 
 type WXYZ a = StateT RiverState IO a
@@ -137,6 +139,8 @@ runWXYZ config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
+         xkb <- getRiverXKBBindings
+
          void $ runStateT
             (onStartup config >> eventLoop display)
             (RiverState M.empty M.empty M.empty)
@@ -178,9 +182,14 @@ shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
 -- ==================
 
 main :: IO ()
-main = runWXYZ $ WXYZConfig
-                    (cacheRiverState <||> manageAndRender)
-                    (  shell "alacritty"
-                    >> shell "alacritty"
-                    )
-
+main = runWXYZ $ WXYZConfig {
+                   onRiverEvent = (cacheRiverState <||> manageAndRender)
+                 , onStartup = (  shell "alacritty"
+                               >> shell "alacritty"
+                               )
+                 , keyBindings
+                 }
+  where
+    keyBindings = M.fromList
+        [ ((mod_mod1, xkb_key_t),      shell "alacritty")
+        ]

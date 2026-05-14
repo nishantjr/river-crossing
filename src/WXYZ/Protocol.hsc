@@ -3,20 +3,29 @@
 module WXYZ.Protocol
     ( wlDisplayConnect
     , awaitRegistry
-    , initEventQueue
-    , next_event
-    , sendRequest
     , getRiverWM
+    , getRiverXKBBindings
+    , initEventQueue
+    , mod_ctrl
+    , mod_mod1
+    , mod_mod3
+    , mod_mod4
+    , mod_mod5
+    , mod_none
+    , mod_shift
+    , next_event
     , riverWMAddEventListeners
     , riverWindowGetNode
-    , WlDisplay
+    , sendRequest
     , Event(..)
+    , Modifier
     , Request(..)
-    , RiverWM
-    , RiverWindow
     , RiverNode
     , RiverOutput
     , RiverSeat
+    , RiverWM
+    , RiverWindow
+    , WlDisplay
     )
   where
 
@@ -63,6 +72,25 @@ data CRiverWindow;  type RiverWindow = Ptr CRiverWindow -- ^ river_window_v1
 data CRiverNode;    type RiverNode   = Ptr CRiverNode   -- ^ river_node_v1
 data CRiverOutput;  type RiverOutput = Ptr CRiverOutput -- ^ river_output_v1
 data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat   -- ^ river_seat_v1
+
+data CRiverXKBBindings; type RiverXKBBindings = Ptr CRiverXKBBindings -- ^ river_xkb_bindings_v1
+
+
+type Modifier = Word16
+mod_none :: Modifier
+mod_none = 0
+mod_shift :: Modifier
+mod_shift = 1
+mod_ctrl :: Modifier
+mod_ctrl = 4
+mod_mod1 :: Modifier
+mod_mod1 = 8
+mod_mod3 :: Modifier
+mod_mod3 = 32
+mod_mod4 :: Modifier
+mod_mod4 = 64
+mod_mod5 :: Modifier
+mod_mod5 = 128
 
 -- | Events from the river_window_management_v1 protocol
 data Event = WMUnavailable                  RiverWM
@@ -119,9 +147,11 @@ foreign import capi "cbits/river.h init_event_queue"
 
 foreign import capi "cbits/river.h get_river_window_manager"
     getRiverWM :: IO RiverWM
-
 foreign import capi "cbits/river.h river_wm_add_event_listeners"
     riverWMAddEventListeners :: RiverWM -> IO ()
+
+foreign import capi "cbits/river.h get_river_xkb_bindings"
+    getRiverXKBBindings :: IO RiverXKBBindings
 
 data CEvent
 foreign import capi "cbits/river.h wxyz_next_event"
