@@ -29,7 +29,7 @@ library
       , wayland-client
       , xkbcommon
     build-depends:    base >=4.18.3.0 && < 5,
-                      mtl,
+                      mtl
     default-language: GHC2021
 
 executable wxyz
@@ -40,6 +40,7 @@ executable wxyz
         containers,
         extra,
         mtl,
+        process,
         transformers,
         wxyzmonad,
     hs-source-dirs:   exe

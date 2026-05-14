@@ -14,6 +14,7 @@ import           Data.Int (Int32)
 import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Word
+import qualified System.Process as P
 
 -- Managing River's State
 -- ======================
@@ -100,6 +101,7 @@ cacheRiverState _ = pure Nothing
 
 -- immutable configuration.
 data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
+                             , onStartup    :: WXYZ ()
                              }
 
 type WXYZ a = StateT RiverState IO a
@@ -117,7 +119,7 @@ runWXYZ config
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
          void $ runStateT
-            (eventLoop display)
+            (onStartup config >> eventLoop display)
             (RiverState M.empty M.empty M.empty)
   where
     eventLoop :: WlDisplay -> WXYZ ()
@@ -147,10 +149,21 @@ runWXYZ config
 
 ---
 
+-- High-level Operations
+-- =====================
+
+shell :: String -> WXYZ ()
+shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
+                        pure ()
+
+
 -- User Configuration
 -- ==================
 
 main :: IO ()
 main = runWXYZ $ WXYZConfig
                     (cacheRiverState <||> manageAndRender)
+                    (  shell "alacritty"
+                    >> shell "alacritty"
+                    )
 
