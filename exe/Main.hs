@@ -19,19 +19,24 @@ import           Data.Word
 data Window = Window { handle :: RiverWindow
                      , node   :: RiverNode
                      }
+    deriving (Show)
 
 data Position   = Position { x :: Int32, y :: Int32 }
+    deriving (Show)
 data Dimensions = Dimensions { width :: Int32, height :: Int32 }
+    deriving (Show)
 data Output = Output { handle :: RiverOutput
                      , wlOutput :: Maybe Word32
                      , position :: Maybe Position
                      , dimensions :: Maybe Dimensions
                      }
+    deriving (Show)
 
 -- Cache of River's Window Management state
 data RiverState = RiverState { windows :: Map RiverWindow Window
                              , outputs :: Map RiverOutput Output
                              }
+    deriving (Show)
 
 -- immutable configuration.
 data WXYZConfig = WXYZConfig {
@@ -60,11 +65,12 @@ runWXYZ config
         do e <- liftIO $ next_event display
            case e of
              Nothing -> pure ()
-             Just e' -> do requests <- fromMaybeM (unhandledEvent e')
+             Just e' -> do liftIO $ putStrLn $ "====" ++ (show e')
+                           requests <- fromMaybeM (unhandledEvent e')
                                                   (handleRiverEvent config e')
                            _ <- liftIO $ mapM (sendRequest display) requests
                            st <- get
-                           liftIO $ putStrLn (show $ length $ windows st)
+                           liftIO $ putStrLn $ (show st) ++ "\n\n"
                            eventLoop display
 
     unhandledEvent e
