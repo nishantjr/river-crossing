@@ -15,6 +15,8 @@ import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Word
 
+-- Managing River's State
+-- ======================
 
 data Window = Window { handle :: RiverWindow
                      , node   :: RiverNode
@@ -42,54 +44,6 @@ data RiverState = RiverState { windows :: Map RiverWindow Window
                              }
     deriving (Show)
 
--- immutable configuration.
-data WXYZConfig = WXYZConfig {
-        handleRiverEvent :: Event -> WXYZ (Maybe [Request])
-    }
-
-type WXYZ a = StateT RiverState IO a
-
-
-runWXYZ :: WXYZConfig -> IO ()
-runWXYZ config
-    = do Just display <- wlDisplayConnect -- TODO: This should print an
-                                          -- error message.
-         initEventQueue
-         putStrLn "Connected to the Display."
-         True <- awaitRegistry display -- This prints a log message internally,
-                                       -- and isn't likely to happen except for
-                                       -- defective window managers. So it is
-                                       -- OK to rely on matching failure.
-         riverWM <- getRiverWM
-         riverWMAddEventListeners riverWM
-         void $ runStateT (eventLoop display) (RiverState M.empty M.empty M.empty)
-  where
-    eventLoop :: WlDisplay -> WXYZ ()
-    eventLoop display =
-        do e <- liftIO $ next_event display
-           case e of
-             Nothing -> pure ()
-             Just e' -> do liftIO $ putStrLn $ "====" ++ (show e')
-                           requests <- fromMaybeM (unhandledEvent e')
-                                                  (handleRiverEvent config e')
-                           _ <- liftIO $ mapM (sendRequest display) requests
-                           st <- get
-                           liftIO $ putStrLn $ (show st) ++ "\n\n"
-                           eventLoop display
-
-    unhandledEvent e
-        = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
-             pure []
-
-
-(<||>) ::    (Event -> WXYZ (Maybe [Request]))
-          -> (Event -> WXYZ (Maybe [Request]))
-          ->  Event -> WXYZ (Maybe [Request])
-(<||>) h1 h2 e = do r1 <- h1 e
-                    case r1 of Nothing  -> h2 e
-                               Just _   -> pure r1
-
----
 
 manageAndRender :: Event -> WXYZ (Maybe [Request])
 manageAndRender (WMManageStart wm) = runMaybeT $ pure [(WMManageFinish wm)]
@@ -139,12 +93,64 @@ cacheRiverState (SeatRemoved seat) = runMaybeT $
        put $ st { seats = M.delete seat (seats st) }
        pure []
 
-
 cacheRiverState _ = pure Nothing
+
+-- Main Loop
+-- =========
+
+-- immutable configuration.
+data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
+                             }
+
+type WXYZ a = StateT RiverState IO a
+
+runWXYZ :: WXYZConfig -> IO ()
+runWXYZ config
+    = do Just display <- wlDisplayConnect -- TODO: This should print an
+                                          -- error message.
+         initEventQueue
+         putStrLn "Connected to the Display."
+         True <- awaitRegistry display -- This prints a log message internally,
+                                       -- and isn't likely to happen except for
+                                       -- defective window managers. So it is
+                                       -- OK to rely on matching failure.
+         riverWM <- getRiverWM
+         riverWMAddEventListeners riverWM
+         void $ runStateT
+            (eventLoop display)
+            (RiverState M.empty M.empty M.empty)
+  where
+    eventLoop :: WlDisplay -> WXYZ ()
+    eventLoop display =
+        do e <- liftIO $ next_event display
+           case e of
+             Nothing -> pure ()
+             Just e' -> do liftIO $ putStrLn $ "====" ++ (show e')
+                           requests <- fromMaybeM (unhandledEvent e')
+                                                  (onRiverEvent config e')
+                           _ <- liftIO $ mapM (sendRequest display) requests
+                           st <- get
+                           liftIO $ putStrLn $ (show st) ++ "\n\n"
+                           eventLoop display
+
+    unhandledEvent e
+        = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
+             pure []
+
+
+(<||>) ::    (Event -> WXYZ (Maybe [Request]))
+          -> (Event -> WXYZ (Maybe [Request]))
+          ->  Event -> WXYZ (Maybe [Request])
+(<||>) h1 h2 e = do r1 <- h1 e
+                    case r1 of Nothing  -> h2 e
+                               Just _   -> pure r1
 
 ---
 
-main :: IO ()
-main = runWXYZ (WXYZConfig (cacheRiverState <||> manageAndRender))
+-- User Configuration
+-- ==================
 
+main :: IO ()
+main = runWXYZ $ WXYZConfig
+                    (cacheRiverState <||> manageAndRender)
 
