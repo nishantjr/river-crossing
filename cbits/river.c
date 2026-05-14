@@ -298,6 +298,7 @@ static void wm_handle_output(
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_OUTPUT;
     wx_event->wm_output.river_wm = obj;
+    wx_event->wm_output.output = river_output;
     river_output_v1_add_listener(river_output, &river_output_listener, NULL);
 }
 
