@@ -79,10 +79,10 @@ static void output_handle_dimensions(void *data, struct river_output_v1 *output,
 }
 
 const struct river_output_v1_listener river_output_listener = {
-	.removed = output_handle_removed,
-	.wl_output = output_handle_wl_output,
-	.position = output_handle_position,
-	.dimensions = output_handle_dimensions,
+    .removed = output_handle_removed,
+    .wl_output = output_handle_wl_output,
+    .position = output_handle_position,
+    .dimensions = output_handle_dimensions,
 };
 
 
@@ -216,24 +216,24 @@ static void window_handle_identifier(void *data, struct river_window_v1 *window,
 }
 
 const struct river_window_v1_listener river_window_listener = {
-	.closed = window_handle_closed,
-	.dimensions_hint = window_handle_dimensions_hint,
-	.dimensions = window_handle_dimensions,
-	.app_id = window_handle_app_id,
-	.title = window_handle_title,
-	.parent = window_handle_parent,
-	.decoration_hint = window_handle_decoration_hint,
-	.pointer_move_requested = window_handle_pointer_move_requested,
-	.pointer_resize_requested = window_handle_pointer_resize_requested,
-	.show_window_menu_requested = window_handle_show_window_menu_requested,
-	.maximize_requested = window_handle_maximize_requested,
-	.unmaximize_requested = window_handle_unmaximize_requested,
-	.fullscreen_requested = window_handle_fullscreen_requested,
-	.exit_fullscreen_requested = window_handle_exit_fullscreen_requested,
-	.minimize_requested = window_handle_minimize_requested,
-	.unreliable_pid = window_handle_unreliable_pid,
-	.presentation_hint = window_handle_presentation_hint,
-	.identifier = window_handle_identifier,
+    .closed = window_handle_closed,
+    .dimensions_hint = window_handle_dimensions_hint,
+    .dimensions = window_handle_dimensions,
+    .app_id = window_handle_app_id,
+    .title = window_handle_title,
+    .parent = window_handle_parent,
+    .decoration_hint = window_handle_decoration_hint,
+    .pointer_move_requested = window_handle_pointer_move_requested,
+    .pointer_resize_requested = window_handle_pointer_resize_requested,
+    .show_window_menu_requested = window_handle_show_window_menu_requested,
+    .maximize_requested = window_handle_maximize_requested,
+    .unmaximize_requested = window_handle_unmaximize_requested,
+    .fullscreen_requested = window_handle_fullscreen_requested,
+    .exit_fullscreen_requested = window_handle_exit_fullscreen_requested,
+    .minimize_requested = window_handle_minimize_requested,
+    .unreliable_pid = window_handle_unreliable_pid,
+    .presentation_hint = window_handle_presentation_hint,
+    .identifier = window_handle_identifier,
 };
 
 
