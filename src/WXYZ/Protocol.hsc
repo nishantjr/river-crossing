@@ -108,9 +108,9 @@ data Request = WMManageFinish RiverWM
              | WMManageDirty RiverWM
              | WMRenderFinish RiverWM
 
-             | NodeSetPosition RiverNode Word32 Word32
+             | NodeSetPosition RiverNode Int32 Int32
 
-             | WindowProposeDimensions RiverWindow Word32 Word32
+             | WindowProposeDimensions RiverWindow Int32 Int32
 
 #include "cbits/river.h"
 
@@ -254,9 +254,9 @@ foreign import capi "river-window-management-v1-client.h river_window_manager_v1
     _river_window_manager_v1_render_finish :: RiverWM -> IO ()
 
 foreign import capi "river-window-management-v1-client.h river_node_v1_set_position"
-    _river_node_v1_set_position :: RiverNode -> Word32 -> Word32 -> IO ()
+    _river_node_v1_set_position :: RiverNode -> Int32 -> Int32 -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
-    _river_window_v1_propose_dimensions:: RiverWindow -> Word32 -> Word32 -> IO ()
+    _river_window_v1_propose_dimensions:: RiverWindow -> Int32 -> Int32 -> IO ()
 
 sendRequest :: WlDisplay -> Request -> IO ()
 sendRequest _dpy request = case request of
