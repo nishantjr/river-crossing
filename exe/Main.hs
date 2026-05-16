@@ -65,8 +65,8 @@ manageAndRender (WMRenderStart wm) = runMaybeT $
     do wins <- windows <$> get
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
        let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
-       let xxx = map (winSetPosition width (fromIntegral $ length wins))  (zip [0..] $ M.elems wins)
-       pure $ xxx ++ [ (WMRenderFinish wm) ]
+       let positions = map (winSetPosition width (fromIntegral $ length wins))  (zip [0..] $ M.elems wins)
+       pure $ positions ++ [ (WMRenderFinish wm) ]
   where
     winSetPosition outputWidth numWins (index, win)
         = (NodeSetPosition (win.node) (index * outputWidth `div` numWins) 0)
