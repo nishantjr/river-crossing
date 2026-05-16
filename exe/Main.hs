@@ -127,8 +127,12 @@ data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
 
 type WXYZ a = StateT RiverState IO a
 
-runWXYZ :: WXYZConfig -> IO ()
-runWXYZ config
+runWXYZ :: WXYZ () -> RiverState -> IO ((), RiverState)
+runWXYZ = runStateT
+
+-- | Entry point for the window manager.
+wxyz :: WXYZConfig -> IO ()
+wxyz config
     = do Just display <- wlDisplayConnect -- TODO: This should print an
                                           -- error message.
          initEventQueue
@@ -141,7 +145,7 @@ runWXYZ config
          riverWMAddEventListeners riverWM
          xkb <- getRiverXKBBindings
 
-         void $ runStateT
+         void $ runWXYZ
             (onStartup config >> eventLoop display)
             (RiverState M.empty M.empty M.empty)
   where
@@ -168,7 +172,6 @@ runWXYZ config
                     case r1 of Nothing  -> h2 e
                                Just _   -> pure r1
 
----
 
 -- High-level Operations
 -- =====================
@@ -182,7 +185,7 @@ shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
 -- ==================
 
 main :: IO ()
-main = runWXYZ $ WXYZConfig {
+main = wxyz $ WXYZConfig {
                    onRiverEvent = (cacheRiverState <||> manageAndRender)
                  , onStartup = (  shell "alacritty"
                                >> shell "alacritty"
