@@ -14,10 +14,12 @@ module WXYZ.Protocol
     , mod_none
     , mod_shift
     , next_event
+    , Event(..)
     , riverWMAddEventListeners
     , riverWindowGetNode
+    , riverXKBGetBinding
+    , riverXKBBindingAddEventListeners
     , sendRequest
-    , Event(..)
     , Modifier
     , Request(..)
     , RiverNode
@@ -25,9 +27,13 @@ module WXYZ.Protocol
     , RiverSeat
     , RiverWM
     , RiverWindow
+    , RiverXKBBinding
+    , RiverXKBBindings
     , WlDisplay
     )
   where
+
+import           WXYZ.XKB (KeySym)
 
 import           Data.Word
 import           Data.Int (Int32)
@@ -73,7 +79,8 @@ data CRiverNode;    type RiverNode   = Ptr CRiverNode   -- ^ river_node_v1
 data CRiverOutput;  type RiverOutput = Ptr CRiverOutput -- ^ river_output_v1
 data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat   -- ^ river_seat_v1
 
-data CRiverXKBBindings; type RiverXKBBindings = Ptr CRiverXKBBindings -- ^ river_xkb_bindings_v1
+data CRiverXKBBindings; type RiverXKBBindings = Ptr CRiverXKBBindings   -- ^ river_xkb_bindings_v1
+data CRiverXKBBinding;  type RiverXKBBinding  = Ptr CRiverXKBBinding    -- ^ river_xkb_binding_v1
 
 
 type Modifier = Word16
@@ -129,6 +136,8 @@ data Event = WMUnavailable                  RiverWM
 
            | SeatRemoved                    RiverSeat
 
+           | XKBBindingPressed              RiverXKBBinding
+
     deriving Show
 
 -- | Requests from the river_window_management_v1 protocol
@@ -139,6 +148,9 @@ data Request = WMManageFinish RiverWM
              | NodeSetPosition RiverNode Int32 Int32
 
              | WindowProposeDimensions RiverWindow Int32 Int32
+
+             | XKBBindingEnable RiverXKBBinding
+
 
 #include "cbits/river.h"
 
@@ -272,6 +284,11 @@ next_event display =
              height <- (#{peek struct wxyz_event, output_dimensions.height} ptr)
              pure $ Just (OutputDimensions output width height)
 
+    unparse #{const XKB_BINDING_PRESSED} ptr
+        = do binding <- (#{peek struct wxyz_event, xkb_binding_pressed.binding} ptr)
+             pure $ Just (XKBBindingPressed binding)
+
+
     unparse e _
         = error $ "Unknown event type: " ++ (show e)
 
@@ -288,6 +305,12 @@ foreign import capi "river-window-management-v1-client.h river_node_v1_set_posit
 foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
     _river_window_v1_propose_dimensions:: RiverWindow -> Int32 -> Int32 -> IO ()
 
+foreign import capi "river-xkb-bindings-v1-client.h river_xkb_binding_v1_enable"
+    _river_xkb_binding_v1_enable :: RiverXKBBinding -> IO ()
+foreign import capi "cbits/river.h river_xkb_binding_add_event_listeners"
+    riverXKBBindingAddEventListeners :: RiverXKBBinding -> IO ()
+
+
 sendRequest :: WlDisplay -> Request -> IO ()
 sendRequest _dpy request = case request of
     (WMManageFinish rwm)    -> _river_window_manager_v1_manage_finish rwm
@@ -298,11 +321,15 @@ sendRequest _dpy request = case request of
 
     (WindowProposeDimensions window w h) ->  _river_window_v1_propose_dimensions window w h
 
+    (XKBBindingEnable binding) -> _river_xkb_binding_v1_enable binding
 
 -- | Requests that have `new_id` are a bit weird, because their not purely a request.
 -- They also need to generate a fresh id on the client before sending the request.
 -- it is therefore stateful. We'll need a Haskell scanner to generate a clean
 -- interface for this.
+
 foreign import capi "river-window-management-v1-client.h river_window_v1_get_node"
     riverWindowGetNode :: RiverWindow -> RiverNode
+foreign import capi "river-xkb-bindings-v1-client.h river_xkb_bindings_v1_get_xkb_binding"
+    riverXKBGetBinding :: RiverXKBBindings -> RiverSeat -> KeySym -> Modifier -> IO RiverXKBBinding
 

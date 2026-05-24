@@ -42,6 +42,8 @@ enum wxyz_event_type {
     OUTPUT_DIMENSIONS,
 
     SEAT_REMOVED,
+
+    XKB_BINDING_PRESSED,
 };
 
 struct wm_unavailable      { struct river_window_manager_v1* river_wm; };
@@ -79,6 +81,8 @@ struct output_position                      { struct river_output_v1* output; in
 struct output_dimensions                    { struct river_output_v1* output; int32_t width; int32_t height; };
 
 struct seat_removed                         { struct river_seat_v1* seat; };
+
+struct xkb_binding_pressed                  { struct river_xkb_binding_v1* binding; };
 
 struct wxyz_event {
     struct wl_list link;
@@ -119,6 +123,8 @@ struct wxyz_event {
         struct output_dimensions    output_dimensions;
 
         struct seat_removed         seat_removed;
+
+        struct xkb_binding_pressed  xkb_binding_pressed;
     };
 };
 
@@ -129,3 +135,5 @@ struct river_window_manager_v1*  get_river_window_manager();
 void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1);
 
 struct river_xkb_bindings_v1* get_river_xkb_bindings();
+void river_xkb_binding_add_event_listeners(struct river_xkb_binding_v1* binding);
+

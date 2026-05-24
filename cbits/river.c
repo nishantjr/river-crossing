@@ -357,6 +357,30 @@ static const struct river_window_manager_v1_listener wm_listener = {
     .seat = wm_handle_seat,
 };
 
+// Bindings callbacks
+// ------------------
+
+static void xkb_binding_handle_pressed(void *data, struct river_xkb_binding_v1 *binding)
+{
+    struct wxyz_event* wx_event = wxyz_new_event();
+    wx_event->type = XKB_BINDING_PRESSED;
+    wx_event->xkb_binding_pressed.binding = binding;
+}
+
+static void xkb_binding_handle_released(void *data, struct river_xkb_binding_v1 *obj)
+{
+}
+
+const struct river_xkb_binding_v1_listener river_xkb_binding_listener = {
+    .pressed = xkb_binding_handle_pressed,
+    .released = xkb_binding_handle_released,
+};
+
+void river_xkb_binding_add_event_listeners(struct river_xkb_binding_v1* binding)
+{
+    river_xkb_binding_v1_add_listener(binding, &river_xkb_binding_listener, NULL);
+}
+
 
 // Connecting to River
 // ===================
