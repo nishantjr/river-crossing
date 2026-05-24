@@ -19,6 +19,7 @@ module WXYZ.Protocol
     , riverWindowGetNode
     , riverXKBGetBinding
     , riverXKBBindingAddEventListeners
+    , _river_window_v1_focus_window
     , sendRequest
     , Modifier
     , Request(..)
@@ -304,12 +305,13 @@ foreign import capi "river-window-management-v1-client.h river_node_v1_set_posit
     _river_node_v1_set_position :: RiverNode -> Int32 -> Int32 -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
     _river_window_v1_propose_dimensions:: RiverWindow -> Int32 -> Int32 -> IO ()
+foreign import capi "river-window-management-v1-client.h river_seat_v1_focus_window"
+    _river_window_v1_focus_window :: RiverSeat -> RiverWindow -> IO ()
 
 foreign import capi "river-xkb-bindings-v1-client.h river_xkb_binding_v1_enable"
     _river_xkb_binding_v1_enable :: RiverXKBBinding -> IO ()
 foreign import capi "cbits/river.h river_xkb_binding_add_event_listeners"
     riverXKBBindingAddEventListeners :: RiverXKBBinding -> IO ()
-
 
 sendRequest :: WlDisplay -> Request -> IO ()
 sendRequest _dpy request = case request of

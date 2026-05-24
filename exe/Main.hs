@@ -18,7 +18,7 @@ import           Data.Int (Int32)
 import qualified Data.List as L
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe, listToMaybe)
 import           Data.Word
 import qualified System.Process as P
 
@@ -90,6 +90,12 @@ manageAndRender (WMManageStart wm) = runMaybeT $
                             o <- st.newSeats,
                             ((mod, sym), act) <- M.toList config.keyBindings
                         ]
+
+       case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
+         (Just lastWin, Just firstSeat) -> liftIO $ do putStrLn $ "------- " ++ (show (lastWin, firstSeat))
+                                                       putStrLn $ show (M.keys st.outputs, M.keys st.windows)
+                                                       _river_window_v1_focus_window firstSeat lastWin
+         _ -> pure ()
 
        pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
