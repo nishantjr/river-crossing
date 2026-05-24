@@ -231,7 +231,8 @@ shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
 main :: IO ()
 main = wxyz $ WXYZConfig {
                    onRiverEvent = (cacheRiverState <||> manageAndRender <||> handleBinding)
-                 , onStartup = pure ()
+                 , onStartup =    shell "swaybg -c 123123"
+                               >> shell "waybar"
                  , keyBindings
                  }
   where

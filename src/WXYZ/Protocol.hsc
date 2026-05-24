@@ -332,4 +332,3 @@ foreign import capi "river-window-management-v1-client.h river_window_v1_get_nod
     riverWindowGetNode :: RiverWindow -> RiverNode
 foreign import capi "river-xkb-bindings-v1-client.h river_xkb_bindings_v1_get_xkb_binding"
     riverXKBGetBinding :: RiverXKBBindings -> RiverSeat -> KeySym -> Modifier -> IO RiverXKBBinding
-

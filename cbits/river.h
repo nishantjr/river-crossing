@@ -3,6 +3,7 @@
 #include <wayland-client-core.h>
 #include <river-window-management-v1-client.h>
 #include <river-xkb-bindings-v1-client.h>
+#include <river-layer-shell-v1-client.h>
 
 bool await_registry(struct wl_display* display);
 

@@ -410,6 +410,8 @@ static void handle_registry_global(
         }
     } else if (strcmp(interface, river_xkb_bindings_v1_interface.name) == 0) {
         xkb_bindings_v1 = wl_registry_bind(registry, name, &river_xkb_bindings_v1_interface, 1);
+    } else if (strcmp(interface, river_layer_shell_v1_interface.name) == 0) {
+        wl_registry_bind(registry, name, &river_layer_shell_v1_interface, 1);
     }
 }
 static void handle_registry_global_remove(void *data, struct wl_registry *registry, uint32_t name)

@@ -24,7 +24,8 @@ library
                       .
     c-sources:        cbits/river.c,
                       .build/protocol/river-window-management-v1-private.c,
-                      .build/protocol/river-xkb-bindings-v1-private.c
+                      .build/protocol/river-xkb-bindings-v1-private.c,
+                      .build/protocol/river-layer-shell-v1-private.c
     pkgconfig-depends:
       , wayland-client
       , xkbcommon
