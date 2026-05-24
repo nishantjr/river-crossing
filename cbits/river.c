@@ -341,6 +341,7 @@ static void wm_handle_seat(
     struct wxyz_event* wx_event = wxyz_new_event();
     wx_event->type = WM_SEAT;
     wx_event->wm_seat.river_wm = obj;
+    wx_event->wm_seat.seat = river_seat;
     river_seat_v1_add_listener(river_seat, &river_seat_listener, NULL);
 }
 
