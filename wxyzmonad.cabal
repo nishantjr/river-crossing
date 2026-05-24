@@ -19,31 +19,33 @@ common warnings
 library
     import:           warnings
     hs-source-dirs:   src/
-    exposed-modules:  WXYZ.Protocol, WXYZ.XKB
+    exposed-modules:  WXYZ.Protocol
+                    , WXYZ.XKB
+                    , WXYZ.River
     include-dirs:     .build/protocol/,
                       .
-    c-sources:        cbits/river.c,
-                      .build/protocol/river-window-management-v1-private.c,
-                      .build/protocol/river-xkb-bindings-v1-private.c,
-                      .build/protocol/river-layer-shell-v1-private.c
+    c-sources:        cbits/river.c
+                    , .build/protocol/river-window-management-v1-private.c
+                    , .build/protocol/river-xkb-bindings-v1-private.c
+                    , .build/protocol/river-layer-shell-v1-private.c
     pkgconfig-depends:
       , wayland-client
       , xkbcommon
-    build-depends:    base >=4.18.3.0 && < 5,
-                      mtl
+    build-depends:    base >=4.18.3.0 && < 5
+                    , containers
+                    , extra
+                    , mtl
+                    , process
+                    , transformers
     default-language: GHC2021
 
 executable wxyz
     import:           warnings
     main-is:          Main.hs
     build-depends:
-        base >=4.18.3.0 && < 5,
-        containers,
-        extra,
-        mtl,
-        process,
-        transformers,
-        wxyzmonad,
+        base >=4.18.3.0 && < 5
+      , containers
+      , wxyzmonad
     hs-source-dirs:   exe
     default-language: GHC2021
 
