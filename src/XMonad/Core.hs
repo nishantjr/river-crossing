@@ -20,13 +20,13 @@
 -- Stability   :  unstable
 -- Portability :  not portable, uses cunning newtype deriving
 --
--- The 'X' monad, a state monad transformer over 'IO', for the window
+-- The 'WXYZ' monad, a state monad transformer over 'IO', for the window
 -- manager state, and support routines.
 --
 -----------------------------------------------------------------------------
 
 module XMonad.Core (
-    X, WindowSet, WindowSpace, WorkspaceId,
+    WXYZ, WindowSet, WindowSpace, WorkspaceId,
     ScreenId(..), ScreenDetail(..), XState(..),
     XConf(..), XConfig(..), LayoutClass(..),
     Layout(..), readsLayout, Typeable, Message,
@@ -39,6 +39,9 @@ module XMonad.Core (
     atom_WM_STATE, atom_WM_PROTOCOLS, atom_WM_DELETE_WINDOW, atom_WM_TAKE_FOCUS, withWindowAttributes,
     ManageHook, Query(..), runQuery, Directories'(..), Directories, getDirectories,
   ) where
+
+import WXYZ.Protocol (RiverWindow)
+import WXYZ.River (WXYZ)
 
 import XMonad.StackSet hiding (modify)
 
@@ -56,6 +59,8 @@ import Data.Semigroup
 import Data.Traversable (for)
 import Data.Time.Clock (UTCTime)
 import Data.Default.Class
+import Data.Int (Int32)
+import Data.Word (Word32)
 import System.Environment (lookupEnv)
 import Data.List (isInfixOf, intercalate, (\\))
 import System.FilePath
@@ -69,8 +74,6 @@ import System.Posix.Types (ProcessID)
 import System.Process
 import System.Directory
 import System.Exit
-import Graphics.X11.Xlib
-import Graphics.X11.Xlib.Extras (getWindowAttributes, WindowAttributes, Event)
 import Data.Typeable
 import Data.Maybe (isJust,fromMaybe)
 import Data.Monoid (Ap(..))
@@ -78,74 +81,20 @@ import Data.Monoid (Ap(..))
 import qualified Data.Map as M
 import qualified Data.Set as S
 
--- | XState, the (mutable) window manager state.
-data XState = XState
-    { windowset        :: !WindowSet                     -- ^ workspace list
-    , mapped           :: !(S.Set Window)                -- ^ the Set of mapped windows
-    , waitingUnmap     :: !(M.Map Window Int)            -- ^ the number of expected UnmapEvents
-    , dragging         :: !(Maybe (Position -> Position -> X (), X ()))
-    , numberlockMask   :: !KeyMask                       -- ^ The numlock modifier
-    , extensibleState  :: !(M.Map String (Either String StateExtension))
-    -- ^ stores custom state information.
-    --
-    -- The module "XMonad.Util.ExtensibleState" in xmonad-contrib
-    -- provides additional information and a simple interface for using this.
-    }
+-- | Per Graphics.X11.Xlib.Types.
+type Position      = Int32
+type Dimension     = Word32
 
--- | XConf, the (read-only) window manager configuration.
-data XConf = XConf
-    { display       :: Display        -- ^ the X11 display
-    , config        :: !(XConfig Layout)       -- ^ initial user configuration
-    , theRoot       :: !Window        -- ^ the root window
-    , normalBorder  :: !Pixel         -- ^ border color of unfocused windows
-    , focusedBorder :: !Pixel         -- ^ border color of the focused window
-    , keyActions    :: !(M.Map (KeyMask, KeySym) (X ()))
-                                      -- ^ a mapping of key presses to actions
-    , buttonActions :: !(M.Map (KeyMask, Button) (Window -> X ()))
-                                      -- ^ a mapping of button presses to actions
-    , mouseFocused :: !Bool           -- ^ was refocus caused by mouse action?
-    , mousePosition :: !(Maybe (Position, Position))
-                                      -- ^ position of the mouse according to
-                                      -- the event currently being processed
-    , currentEvent :: !(Maybe Event)  -- ^ event currently being processed
-    , directories  :: !Directories    -- ^ directories to use
-    }
+-- | counterpart of an X11 @XRectangle@ structure
+data Rectangle = Rectangle {
+        rect_x      :: !Position,
+        rect_y      :: !Position,
+        rect_width  :: !Dimension,
+        rect_height :: !Dimension
+        }
 
--- todo, better name
-data XConfig l = XConfig
-    { normalBorderColor  :: !String              -- ^ Non focused windows border color. Default: \"#dddddd\"
-    , focusedBorderColor :: !String              -- ^ Focused windows border color. Default: \"#ff0000\"
-    , terminal           :: !String              -- ^ The preferred terminal application. Default: \"xterm\"
-    , layoutHook         :: !(l Window)          -- ^ The available layouts
-    , manageHook         :: !ManageHook          -- ^ The action to run when a new window is opened
-    , handleEventHook    :: !(Event -> X All)    -- ^ Handle an X event, returns (All True) if the default handler
-                                                 -- should also be run afterwards. mappend should be used for combining
-                                                 -- event hooks in most cases.
-    , workspaces         :: ![String]            -- ^ The list of workspaces' names
-    , modMask            :: !KeyMask             -- ^ the mod modifier
-    , keys               :: !(XConfig Layout -> M.Map (ButtonMask,KeySym) (X ()))
-                                                 -- ^ The key binding: a map from key presses and actions
-    , mouseBindings      :: !(XConfig Layout -> M.Map (ButtonMask, Button) (Window -> X ()))
-                                                 -- ^ The mouse bindings
-    , borderWidth        :: !Dimension           -- ^ The border width
-    , logHook            :: !(X ())              -- ^ The action to perform when the windows set is changed
-    , startupHook        :: !(X ())              -- ^ The action to perform on startup
-    , focusFollowsMouse  :: !Bool                -- ^ Whether window entry events can change focus
-    , clickJustFocuses   :: !Bool                -- ^ False to make a click which changes focus to be additionally passed to the window
-    , clientMask         :: !EventMask           -- ^ The client events that xmonad is interested in
-    , rootMask           :: !EventMask           -- ^ The root events that xmonad is interested in
-    , handleExtraArgs    :: !([String] -> XConfig Layout -> IO (XConfig Layout))
-                                                 -- ^ Modify the configuration, complain about extra arguments etc. with arguments that are not handled by default
-    , extensibleConf     :: !(M.Map TypeRep ConfExtension)
-                                                 -- ^ Stores custom config information.
-                                                 --
-                                                 -- The module "XMonad.Util.ExtensibleConf" in xmonad-contrib
-                                                 -- provides additional information and a simple interface for using this.
-    }
-
-
-type WindowSet   = StackSet  WorkspaceId (Layout Window) Window ScreenId ScreenDetail
-type WindowSpace = Workspace WorkspaceId (Layout Window) Window
+type WindowSet   = StackSet  WorkspaceId (Layout RiverWindow) RiverWindow ScreenId ScreenDetail
+type WindowSpace = Workspace WorkspaceId (Layout RiverWindow) RiverWindow
 
 -- | Virtual workspace indices
 type WorkspaceId = String
@@ -153,46 +102,17 @@ type WorkspaceId = String
 -- | Physical screen indices
 newtype ScreenId    = S Int deriving (Eq,Ord,Show,Read,Enum,Num,Integral,Real)
 
+
+
 -- | The 'Rectangle' with screen dimensions
 newtype ScreenDetail = SD { screenRect :: Rectangle }
     deriving (Eq,Show, Read)
 
 ------------------------------------------------------------------------
 
--- | The X monad, 'ReaderT' and 'StateT' transformers over 'IO'
--- encapsulating the window manager configuration and state,
--- respectively.
---
--- Dynamic components may be retrieved with 'get', static components
--- with 'ask'. With newtype deriving we get readers and state monads
--- instantiated on 'XConf' and 'XState' automatically.
---
-newtype X a = X (ReaderT XConf (StateT XState IO) a)
-    deriving (Functor, Applicative, Monad, MonadFail, MonadIO, MonadState XState, MonadReader XConf)
-    deriving (Semigroup, Monoid) via Ap X a
-
-instance Default a => Default (X a) where
-    def = return def
-
-type ManageHook = Query (Endo WindowSet)
-newtype Query a = Query (ReaderT Window X a)
-    deriving (Functor, Applicative, Monad, MonadReader Window, MonadIO)
-    deriving (Semigroup, Monoid) via Ap Query a
-
-runQuery :: Query a -> Window -> X a
-runQuery (Query m) = runReaderT m
-
-instance Default a => Default (Query a) where
-    def = return def
-
--- | Run the 'X' monad, given a chunk of 'X' monad code, and an initial state
--- Return the result, and final state
-runX :: XConf -> XState -> X a -> IO (a, XState)
-runX c st (X a) = runStateT (runReaderT a c) st
-
--- | Run in the 'X' monad, and in case of exception, and catch it and log it
+-- | Run in the 'WXYZ' monad, and in case of exception, and catch it and log it
 -- to stderr, and run the error case.
-catchX :: X a -> X a -> X a
+catchX :: WXYZ a -> WXYZ a -> WXYZ a
 catchX job errcase = do
     st <- get
     c <- ask
@@ -204,45 +124,20 @@ catchX job errcase = do
 
 -- | Execute the argument, catching all exceptions.  Either this function or
 -- 'catchX' should be used at all callsites of user customized code.
-userCode :: X a -> X (Maybe a)
+userCode :: WXYZ a -> WXYZ (Maybe a)
 userCode a = catchX (Just <$> a) (return Nothing)
 
 -- | Same as userCode but with a default argument to return instead of using
 -- Maybe, provided for convenience.
-userCodeDef :: a -> X a -> X a
+userCodeDef :: a -> WXYZ a -> WXYZ a
 userCodeDef defValue a = fromMaybe defValue <$> userCode a
 
 -- ---------------------------------------------------------------------
 -- Convenient wrappers to state
 
--- | Run a monad action with the current display settings
-withDisplay :: (Display -> X a) -> X a
-withDisplay   f = asks display >>= f
-
 -- | Run a monadic action with the current stack set
-withWindowSet :: (WindowSet -> X a) -> X a
+withWindowSet :: (WindowSet -> WXYZ a) -> WXYZ a
 withWindowSet f = gets windowset >>= f
-
--- | Safely access window attributes.
-withWindowAttributes :: Display -> Window -> (WindowAttributes -> X ()) -> X ()
-withWindowAttributes dpy win f = do
-    wa <- userCode (io $ getWindowAttributes dpy win)
-    catchX (whenJust wa f) (return ())
-
--- | True if the given window is the root window
-isRoot :: Window -> X Bool
-isRoot w = asks $ (w ==) . theRoot
-
--- | Wrapper for the common case of atom internment
-getAtom :: String -> X Atom
-getAtom str = withDisplay $ \dpy -> io $ internAtom dpy str False
-
--- | Common non-predefined atoms
-atom_WM_PROTOCOLS, atom_WM_DELETE_WINDOW, atom_WM_STATE, atom_WM_TAKE_FOCUS :: X Atom
-atom_WM_PROTOCOLS       = getAtom "WM_PROTOCOLS"
-atom_WM_DELETE_WINDOW   = getAtom "WM_DELETE_WINDOW"
-atom_WM_STATE           = getAtom "WM_STATE"
-atom_WM_TAKE_FOCUS      = getAtom "WM_TAKE_FOCUS"
 
 ------------------------------------------------------------------------
 -- LayoutClass handling. See particular instances in Operations.hs
@@ -289,7 +184,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     --   "XMonad.Layout.PerWorkspace").
     runLayout :: Workspace WorkspaceId (layout a) a
               -> Rectangle
-              -> X ([(a, Rectangle)], Maybe (layout a))
+              -> WXYZ ([(a, Rectangle)], Maybe (layout a))
     runLayout (Workspace _ l ms) r = maybe (emptyLayout l r) (doLayout l r) ms
 
     -- | Given a 'Rectangle' in which to place the windows, and a 'Stack'
@@ -303,21 +198,21 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- keeps track of some sort of state).  Return @Nothing@ if the
     -- layout does not need to be modified.
     --
-    -- Layouts which do not need access to the 'X' monad ('IO', window
+    -- Layouts which do not need access to the 'WXYZ' monad ('IO', window
     -- manager state, or configuration) and do not keep track of their
     -- own state should implement 'pureLayout' instead of 'doLayout'.
     doLayout    :: layout a -> Rectangle -> Stack a
-                -> X ([(a, Rectangle)], Maybe (layout a))
+                -> WXYZ ([(a, Rectangle)], Maybe (layout a))
     doLayout l r s   = return (pureLayout l r s, Nothing)
 
     -- | This is a pure version of 'doLayout', for cases where we
-    -- don't need access to the 'X' monad to determine how to lay out
+    -- don't need access to the 'WXYZ' monad to determine how to lay out
     -- the windows, and we don't need to modify the layout itself.
     pureLayout  :: layout a -> Rectangle -> Stack a -> [(a, Rectangle)]
     pureLayout _ r s = [(focus s, r)]
 
     -- | 'emptyLayout' is called when there are no windows.
-    emptyLayout :: layout a -> Rectangle -> X ([(a, Rectangle)], Maybe (layout a))
+    emptyLayout :: layout a -> Rectangle -> WXYZ ([(a, Rectangle)], Maybe (layout a))
     emptyLayout _ _ = return ([], Nothing)
 
     -- | 'handleMessage' performs message handling.  If
@@ -326,11 +221,11 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- Otherwise, 'handleMessage' returns an updated layout and the
     -- screen is refreshed.
     --
-    -- Layouts which do not need access to the 'X' monad to decide how
+    -- Layouts which do not need access to the 'WXYZ' monad to decide how
     -- to handle messages should implement 'pureMessage' instead of
     -- 'handleMessage' (this restricts the risk of error, and makes
     -- testing much easier).
-    handleMessage :: layout a -> SomeMessage -> X (Maybe (layout a))
+    handleMessage :: layout a -> SomeMessage -> WXYZ (Maybe (layout a))
     handleMessage l  = return . pureMessage l
 
     -- | Respond to a message by (possibly) changing our layout, but
@@ -345,7 +240,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     description :: layout a -> String
     description      = show
 
-instance LayoutClass Layout Window where
+instance LayoutClass Layout RiverWindow where
     runLayout (Workspace i (Layout l) ms) r = fmap (fmap Layout) `fmap` runLayout (Workspace i l ms) r
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
     emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
@@ -373,9 +268,6 @@ data SomeMessage = forall a. Message a => SomeMessage a
 --
 fromMessage :: Message m => SomeMessage -> Maybe m
 fromMessage (SomeMessage m) = cast m
-
--- X Events are valid Messages.
-instance Message Event
 
 -- | 'LayoutMessages' are core messages that all layouts (especially stateful
 -- layouts) should consider handling.
@@ -423,11 +315,11 @@ data ConfExtension = forall a. Typeable a => ConfExtension a
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM mb t f = mb >>= \b -> if b then t else f
 
--- | Lift an 'IO' action into the 'X' monad
+-- | Lift an 'IO' action into the 'WXYZ' monad
 io :: MonadIO m => IO a -> m a
 io = liftIO
 
--- | Lift an 'IO' action into the 'X' monad.  If the action results in an 'IO'
+-- | Lift an 'IO' action into the 'WXYZ' monad.  If the action results in an 'IO'
 -- exception, log the exception to stderr and continue normal execution.
 catchIO :: MonadIO m => IO () -> m ()
 catchIO f = io (f `E.catch` \(SomeException e) -> hPrint stderr e >> hFlush stderr)
@@ -470,9 +362,9 @@ xmessage msg = void . xfork $ do
         , msg
         ] Nothing
 
--- | This is basically a map function, running a function in the 'X' monad on
+-- | This is basically a map function, running a function in the 'WXYZ' monad on
 -- each workspace with the output of that function being the modified workspace.
-runOnWorkspaces :: (WindowSpace -> X WindowSpace) -> X ()
+runOnWorkspaces :: (WindowSpace -> WXYZ WindowSpace) -> WXYZ ()
 runOnWorkspaces job = do
     ws <- gets windowset
     h <- mapM job $ hidden ws
@@ -556,17 +448,17 @@ getDirectories = xmEnvDirs <|> xmDirs <|> xdgDirs
                          d <$ createDirectoryIfMissing True d
 
 -- | Return the path to the xmonad configuration directory.
-getXMonadDir :: X String
+getXMonadDir :: WXYZ String
 getXMonadDir = asks (cfgDir . directories)
 {-# DEPRECATED getXMonadDir "Use `asks (cfgDir . directories)' instead." #-}
 
 -- | Return the path to the xmonad cache directory.
-getXMonadCacheDir :: X String
+getXMonadCacheDir :: WXYZ String
 getXMonadCacheDir = asks (cacheDir . directories)
 {-# DEPRECATED getXMonadCacheDir "Use `asks (cacheDir . directories)' instead." #-}
 
 -- | Return the path to the xmonad data directory.
-getXMonadDataDir :: X String
+getXMonadDataDir :: WXYZ String
 getXMonadDataDir = asks (dataDir . directories)
 {-# DEPRECATED getXMonadDataDir "Use `asks (dataDir . directories)' instead." #-}
 
@@ -865,11 +757,11 @@ recompile dirs force = io $ do
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust mg f = maybe (return ()) f mg
 
--- | Conditionally run an action, using a 'X' event to decide
-whenX :: X Bool -> X () -> X ()
+-- | Conditionally run an action, using a 'WXYZ' event to decide
+whenX :: WXYZ Bool -> WXYZ () -> WXYZ ()
 whenX a f = a >>= \b -> when b f
 
--- | A 'trace' for the 'X' monad. Logs a string to stderr. The result may
+-- | A 'trace' for the 'WXYZ' monad. Logs a string to stderr. The result may
 -- be found in your .xsession-errors file
 trace :: MonadIO m => String -> m ()
 trace = io . hPutStrLn stderr
