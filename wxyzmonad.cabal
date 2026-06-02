@@ -22,6 +22,9 @@ library
     exposed-modules:  WXYZ.Protocol
                     , WXYZ.XKB
                     , WXYZ.River
+                    , XMonad.Core
+                    , XMonad.Layout
+                    , XMonad.StackSet
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c
@@ -33,10 +36,15 @@ library
       , xkbcommon
     build-depends:    base >=4.18.3.0 && < 5
                     , containers
+                    , data-default-class
+                    , directory
                     , extra
+                    , filepath
                     , mtl
                     , process
+                    , time
                     , transformers
+                    , unix
     default-language: GHC2021
 
 executable wxyz

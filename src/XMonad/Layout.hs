@@ -28,8 +28,6 @@ module XMonad.Layout (
 
 import XMonad.Core
 
-import Graphics.X11 (Rectangle(..))
-import Graphics.X11.Xlib.Extras ( Event(DestroyWindowEvent) )
 import qualified XMonad.StackSet as W
 import Control.Arrow ((***), second)
 import Control.Monad
@@ -189,14 +187,14 @@ instance Message NextNoWrap
 
 -- | A small wrapper around handleMessage, as it is tedious to write
 -- SomeMessage repeatedly.
-handle :: (LayoutClass l a, Message m) => l a -> m -> X (Maybe (l a))
+handle :: (LayoutClass l a, Message m) => l a -> m -> WXYZ (Maybe (l a))
 handle l m = handleMessage l (SomeMessage m)
 
 -- | A smart constructor that takes some potential modifications, returns a
 -- new structure if any fields have changed, and performs any necessary cleanup
 -- on newly non-visible layouts.
 choose :: (LayoutClass l a, LayoutClass r a)
-       => Choose l r a -> CLR -> Maybe (l a) -> Maybe (r a) -> X (Maybe (Choose l r a))
+       => Choose l r a -> CLR -> Maybe (l a) -> Maybe (r a) -> WXYZ (Maybe (Choose l r a))
 choose (Choose d _ _) d' Nothing Nothing | d == d' = return Nothing
 choose (Choose d l r) d' ml      mr = f lr
  where
@@ -233,12 +231,6 @@ instance (LayoutClass l a, LayoutClass r a) => LayoutClass (Choose l r) a where
 
     handleMessage c@(Choose _ l _) m | Just FirstLayout <- fromMessage m =
         flip (choose c CL) Nothing =<< handle l FirstLayout
-
-    handleMessage c@(Choose d l r) m | Just ReleaseResources <- fromMessage m =
-        join $ liftM2 (choose c d) (handle l ReleaseResources) (handle r ReleaseResources)
-
-    handleMessage c@(Choose d l r) m | Just e@DestroyWindowEvent{} <- fromMessage m =
-        join $ liftM2 (choose c d) (handle l e) (handle r e)
 
     handleMessage c@(Choose d l r) m | Just (JumpToLayout desc) <- fromMessage m = do
         ml <- handleMessage l m

@@ -54,7 +54,7 @@ module XMonad.StackSet (
 
 import Prelude hiding (filter)
 import Control.Applicative.Backwards (Backwards (Backwards, forwards))
-import Data.Foldable (foldr, toList)
+import Data.Foldable (toList)
 import Data.Maybe   (listToMaybe,isJust,fromMaybe)
 import qualified Data.List as L (deleteBy,find,splitAt,filter,nub)
 import Data.List ( (\\) )

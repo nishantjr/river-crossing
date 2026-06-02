@@ -9,6 +9,7 @@ module WXYZ.River (
     , cacheRiverState
     , manageAndRender
     , handleBinding
+    , runWXYZ
     , shell
     , (<||>)
   ) where
@@ -189,7 +190,9 @@ data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
 
 type WXYZ a = ReaderT WXYZConfig (StateT RiverState IO) a
 
-runWXYZ :: WXYZConfig -> RiverState -> WXYZ () -> IO ((), RiverState)
+--- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
+--  state. Return the result, and final state
+runWXYZ :: WXYZConfig -> RiverState -> WXYZ a -> IO (a, RiverState)
 runWXYZ c st act = runStateT (runReaderT act c) st
 
 -- | Entry point for the window manager.

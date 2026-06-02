@@ -27,59 +27,38 @@
 
 module XMonad.Core (
     WXYZ, WindowSet, WindowSpace, WorkspaceId,
-    ScreenId(..), ScreenDetail(..), XState(..),
-    XConf(..), XConfig(..), LayoutClass(..),
-    Layout(..), readsLayout, Typeable, Message,
+    ScreenId(..), ScreenDetail(..),
+    LayoutClass(..), Layout(..), Rectangle(..),
+    readsLayout, Typeable, Message,
     SomeMessage(..), fromMessage, LayoutMessages(..),
     StateExtension(..), ExtensionClass(..), ConfExtension(..),
-    runX, catchX, userCode, userCodeDef, io, catchIO, installSignalHandlers, uninstallSignalHandlers,
-    withDisplay, withWindowSet, isRoot, runOnWorkspaces,
-    getAtom, spawn, spawnPID, xfork, xmessage, recompile, trace, whenJust, whenX, ifM,
-    getXMonadDir, getXMonadCacheDir, getXMonadDataDir, stateFileName, binFileName,
-    atom_WM_STATE, atom_WM_PROTOCOLS, atom_WM_DELETE_WINDOW, atom_WM_TAKE_FOCUS, withWindowAttributes,
-    ManageHook, Query(..), runQuery, Directories'(..), Directories, getDirectories,
+    runWXYZ, catchWXYZ, userCode, userCodeDef, io, catchIO, installSignalHandlers, uninstallSignalHandlers,
+    spawn, spawnPID, xfork, xmessage, trace, whenJust, whenWXYZ, ifM,
   ) where
 
 import WXYZ.Protocol (RiverWindow)
-import WXYZ.River (WXYZ)
+import WXYZ.River (WXYZ, runWXYZ)
 
 import XMonad.StackSet hiding (modify)
 
 import Prelude
-import Control.Exception (fromException, try, bracket_, throw, finally, SomeException(..))
+import Control.Exception (fromException, try, throw, finally, SomeException(..))
 import qualified Control.Exception as E
-import Control.Applicative ((<|>), empty)
-import Control.Monad.Fail
 import Control.Monad.Fix (fix)
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Monad (filterM, guard, void, when)
-import Data.Char (isSpace)
-import Data.Semigroup
-import Data.Traversable (for)
-import Data.Time.Clock (UTCTime)
-import Data.Default.Class
+import Control.Monad (void, when)
 import Data.Int (Int32)
 import Data.Word (Word32)
 import System.Environment (lookupEnv)
-import Data.List (isInfixOf, intercalate, (\\))
-import System.FilePath
 import System.IO
-import System.Info
-import System.Posix.Env (getEnv)
 import System.Posix.Process (executeFile, forkProcess, getAnyProcessStatus, createSession)
 import System.Posix.Signals
 import System.Posix.IO
 import System.Posix.Types (ProcessID)
-import System.Process
-import System.Directory
 import System.Exit
 import Data.Typeable
 import Data.Maybe (isJust,fromMaybe)
-import Data.Monoid (Ap(..))
-
-import qualified Data.Map as M
-import qualified Data.Set as S
 
 -- | Per Graphics.X11.Xlib.Types.
 type Position      = Int32
@@ -92,6 +71,7 @@ data Rectangle = Rectangle {
         rect_width  :: !Dimension,
         rect_height :: !Dimension
         }
+    deriving (Eq, Read, Show)
 
 type WindowSet   = StackSet  WorkspaceId (Layout RiverWindow) RiverWindow ScreenId ScreenDetail
 type WindowSpace = Workspace WorkspaceId (Layout RiverWindow) RiverWindow
@@ -112,32 +92,25 @@ newtype ScreenDetail = SD { screenRect :: Rectangle }
 
 -- | Run in the 'WXYZ' monad, and in case of exception, and catch it and log it
 -- to stderr, and run the error case.
-catchX :: WXYZ a -> WXYZ a -> WXYZ a
-catchX job errcase = do
+catchWXYZ :: WXYZ a -> WXYZ a -> WXYZ a
+catchWXYZ job errcase = do
     st <- get
     c <- ask
-    (a, s') <- io $ runX c st job `E.catch` \e -> case fromException e of
+    (a, s') <- io $ runWXYZ c st job `E.catch` \e -> case fromException e of
                         Just (_ :: ExitCode) -> throw e
-                        _ -> do hPrint stderr e; runX c st errcase
+                        _ -> do hPrint stderr e; runWXYZ c st errcase
     put s'
     return a
 
 -- | Execute the argument, catching all exceptions.  Either this function or
--- 'catchX' should be used at all callsites of user customized code.
+-- 'catchWXYZ' should be used at all callsites of user customized code.
 userCode :: WXYZ a -> WXYZ (Maybe a)
-userCode a = catchX (Just <$> a) (return Nothing)
+userCode a = catchWXYZ (Just <$> a) (return Nothing)
 
 -- | Same as userCode but with a default argument to return instead of using
 -- Maybe, provided for convenience.
 userCodeDef :: a -> WXYZ a -> WXYZ a
 userCodeDef defValue a = fromMaybe defValue <$> userCode a
-
--- ---------------------------------------------------------------------
--- Convenient wrappers to state
-
--- | Run a monadic action with the current stack set
-withWindowSet :: (WindowSet -> WXYZ a) -> WXYZ a
-withWindowSet f = gets windowset >>= f
 
 ------------------------------------------------------------------------
 -- LayoutClass handling. See particular instances in Operations.hs
@@ -272,7 +245,6 @@ fromMessage (SomeMessage m) = cast m
 -- | 'LayoutMessages' are core messages that all layouts (especially stateful
 -- layouts) should consider handling.
 data LayoutMessages = Hide              -- ^ sent when a layout becomes non-visible
-                    | ReleaseResources  -- ^ sent when xmonad is exiting or restarting
     deriving Eq
 
 instance Message LayoutMessages
@@ -339,7 +311,7 @@ spawnPID x = xfork $ executeFile "/bin/sh" False ["-c", x] Nothing
 xfork :: MonadIO m => IO () -> m ProcessID
 xfork x = io . forkProcess . finally nullStdin $ do
                 uninstallSignalHandlers
-                createSession
+                _ <- createSession
                 x
  where
     nullStdin = do
@@ -348,7 +320,7 @@ xfork x = io . forkProcess . finally nullStdin $ do
 #else
         fd <- openFd "/dev/null" ReadOnly Nothing defaultFileFlags
 #endif
-        dupTo fd stdInput
+        _ <- dupTo fd stdInput
         closeFd fd
 
 -- | Use @xmessage@ to show information to the user.
@@ -362,404 +334,13 @@ xmessage msg = void . xfork $ do
         , msg
         ] Nothing
 
--- | This is basically a map function, running a function in the 'WXYZ' monad on
--- each workspace with the output of that function being the modified workspace.
-runOnWorkspaces :: (WindowSpace -> WXYZ WindowSpace) -> WXYZ ()
-runOnWorkspaces job = do
-    ws <- gets windowset
-    h <- mapM job $ hidden ws
-    c:v <- mapM (\s -> (\w -> s { workspace = w}) <$> job (workspace s))
-             $ current ws : visible ws
-    modify $ \s -> s { windowset = ws { current = c, visible = v, hidden = h } }
-
--- | All the directories that xmonad will use.  They will be used for
--- the following purposes:
---
--- * @dataDir@: This directory is used by XMonad to store data files
--- such as the run-time state file.
---
--- * @cfgDir@: This directory is where user configuration files are
--- stored (e.g, the xmonad.hs file).  You may also create a @lib@
--- subdirectory in the configuration directory and the default recompile
--- command will add it to the GHC include path.
---
--- * @cacheDir@: This directory is used to store temporary files that
--- can easily be recreated such as the configuration binary and any
--- intermediate object files generated by GHC.
--- Also, the XPrompt history file goes here.
---
--- For how these directories are chosen, see 'getDirectories'.
---
-data Directories' a = Directories
-    { dataDir  :: !a
-    , cfgDir   :: !a
-    , cacheDir :: !a
-    }
-    deriving (Show, Functor, Foldable, Traversable)
-
--- | Convenient type alias for the most common case in which one might
--- want to use the 'Directories' type.
-type Directories = Directories' FilePath
-
--- | Build up the 'Dirs' that xmonad will use.  They are chosen as
--- follows:
---
--- 1. If all three of xmonad's environment variables (@XMONAD_DATA_DIR@,
---    @XMONAD_CONFIG_DIR@, and @XMONAD_CACHE_DIR@) are set, use them.
--- 2. If there is a build script called @build@ or configuration
---    @xmonad.hs@ in @~\/.xmonad@, set all three directories to
---    @~\/.xmonad@.
--- 3. Otherwise, use the @xmonad@ directory in @XDG_DATA_HOME@,
---    @XDG_CONFIG_HOME@, and @XDG_CACHE_HOME@ (or their respective
---    fallbacks).  These directories are created if necessary.
---
--- The xmonad configuration file (or the build script, if present) is
--- always assumed to be in @cfgDir@.
---
-getDirectories :: IO Directories
-getDirectories = xmEnvDirs <|> xmDirs <|> xdgDirs
-  where
-    -- | Check for xmonad's environment variables first
-    xmEnvDirs :: IO Directories
-    xmEnvDirs = do
-        let xmEnvs = Directories{ dataDir  = "XMONAD_DATA_DIR"
-                                , cfgDir   = "XMONAD_CONFIG_DIR"
-                                , cacheDir = "XMONAD_CACHE_DIR"
-                                }
-        maybe empty pure . sequenceA =<< traverse getEnv xmEnvs
-
-    -- | Check whether the config file or a build script is in the
-    -- @~\/.xmonad@ directory
-    xmDirs :: IO Directories
-    xmDirs = do
-        xmDir <- getAppUserDataDirectory "xmonad"
-        conf  <- doesFileExist $ xmDir </> "xmonad.hs"
-        build <- doesFileExist $ xmDir </> "build"
-
-        -- Place *everything* in ~/.xmonad if yes
-        guard $ conf || build
-        pure Directories{ dataDir = xmDir, cfgDir = xmDir, cacheDir = xmDir }
-
-    -- | Use XDG directories as a fallback
-    xdgDirs :: IO Directories
-    xdgDirs =
-        for Directories{ dataDir = XdgData, cfgDir = XdgConfig, cacheDir = XdgCache }
-            $ \dir -> do d <- getXdgDirectory dir "xmonad"
-                         d <$ createDirectoryIfMissing True d
-
--- | Return the path to the xmonad configuration directory.
-getXMonadDir :: WXYZ String
-getXMonadDir = asks (cfgDir . directories)
-{-# DEPRECATED getXMonadDir "Use `asks (cfgDir . directories)' instead." #-}
-
--- | Return the path to the xmonad cache directory.
-getXMonadCacheDir :: WXYZ String
-getXMonadCacheDir = asks (cacheDir . directories)
-{-# DEPRECATED getXMonadCacheDir "Use `asks (cacheDir . directories)' instead." #-}
-
--- | Return the path to the xmonad data directory.
-getXMonadDataDir :: WXYZ String
-getXMonadDataDir = asks (dataDir . directories)
-{-# DEPRECATED getXMonadDataDir "Use `asks (dataDir . directories)' instead." #-}
-
-binFileName, buildDirName :: Directories -> FilePath
-binFileName  Directories{ cacheDir } = cacheDir </> "xmonad-" <> arch <> "-" <> os
-buildDirName Directories{ cacheDir } = cacheDir </> "build-" <> arch <> "-" <> os
-
-errFileName, stateFileName :: Directories -> FilePath
-errFileName   Directories{ dataDir } = dataDir </> "xmonad.errors"
-stateFileName Directories{ dataDir } = dataDir </> "xmonad.state"
-
-srcFileName, libFileName :: Directories -> FilePath
-srcFileName Directories{ cfgDir } = cfgDir </> "xmonad.hs"
-libFileName Directories{ cfgDir } = cfgDir </> "lib"
-
-buildScriptFileName, stackYamlFileName, nixFlakeFileName, nixDefaultFileName :: Directories -> FilePath
-buildScriptFileName Directories{ cfgDir } = cfgDir </> "build"
-stackYamlFileName   Directories{ cfgDir } = cfgDir </> "stack.yaml"
-nixFlakeFileName    Directories{ cfgDir } = cfgDir </> "flake.nix"
-nixDefaultFileName  Directories{ cfgDir } = cfgDir </> "default.nix"
-
--- | Compilation method for xmonad configuration.
-data Compile
-  = CompileGhc
-  | CompileCabal
-  | CompileStackGhc FilePath
-  | CompileNixFlake
-  | CompileNixDefault
-  | CompileScript FilePath
-    deriving (Show)
-
--- | Detect compilation method by looking for known file names in xmonad
--- configuration directory.
-detectCompile :: Directories -> IO Compile
-detectCompile dirs =
-  tryScript <|> tryStack <|> tryNixFlake <|> tryNixDefault <|> tryCabal <|> useGhc
-  where
-    buildScript = buildScriptFileName dirs
-    stackYaml = stackYamlFileName dirs
-    flakeNix = nixFlakeFileName dirs
-    defaultNix = nixDefaultFileName dirs
-
-    tryScript = do
-        guard =<< doesFileExist buildScript
-        isExe <- isExecutable buildScript
-        if isExe
-          then do
-            trace $ "XMonad will use build script at " <> show buildScript <> " to recompile."
-            pure $ CompileScript buildScript
-          else do
-            trace $ "XMonad will not use build script, because " <> show buildScript <> " is not executable."
-            trace $ "Suggested resolution to use it: chmod u+x " <> show buildScript
-            empty
-
-    tryNixFlake = do
-      guard =<< doesFileExist flakeNix
-      canonNixFlake <- canonicalizePath flakeNix
-      trace $ "XMonad will use nix flake at " <> show canonNixFlake <> " to recompile"
-      pure CompileNixFlake
-
-    tryNixDefault = do
-      guard =<< doesFileExist defaultNix
-      canonNixDefault <- canonicalizePath defaultNix
-      trace $ "XMonad will use nix file at " <> show canonNixDefault <> " to recompile"
-      pure CompileNixDefault
-
-    tryStack = do
-        guard =<< doesFileExist stackYaml
-        canonStackYaml <- canonicalizePath stackYaml
-        trace $ "XMonad will use stack ghc --stack-yaml " <> show canonStackYaml <> " to recompile."
-        pure $ CompileStackGhc canonStackYaml
-
-    tryCabal = let cwd = cfgDir dirs in listCabalFiles cwd >>= \ case
-        [] -> do
-            empty
-        [name] -> do
-            trace $ "XMonad will use " <> show name <> " to recompile."
-            pure CompileCabal
-        _ : _ : _ -> do
-            trace $ "XMonad will not use cabal, because there are multiple cabal files in " <> show cwd <> "."
-            empty
-
-    useGhc = do
-        trace $ "XMonad will use ghc to recompile, because none of "
-                <> intercalate ", "
-                     [ show buildScript
-                     , show stackYaml
-                     , show flakeNix
-                     , show defaultNix
-                     ] <> " nor a suitable .cabal file exist."
-        pure CompileGhc
-
-listCabalFiles :: FilePath -> IO [FilePath]
-listCabalFiles dir = map (dir </>) . Prelude.filter isCabalFile <$> listFiles dir
-
-isCabalFile :: FilePath -> Bool
-isCabalFile file = case splitExtension file of
-    (name, ".cabal") -> not (null name)
-    _ -> False
-
-listFiles :: FilePath -> IO [FilePath]
-listFiles dir = getDirectoryContents dir >>= filterM (doesFileExist . (dir </>))
-
--- | Determine whether or not the file found at the provided filepath is executable.
-isExecutable :: FilePath -> IO Bool
-isExecutable f = E.catch (executable <$> getPermissions f) (\(SomeException _) -> return False)
-
--- | Should we recompile xmonad configuration? Is it newer than the compiled
--- binary?
-shouldCompile :: Directories -> Compile -> IO Bool
-shouldCompile dirs CompileGhc = do
-    libTs <- mapM getModTime . Prelude.filter isSource =<< allFiles (libFileName dirs)
-    srcT <- getModTime (srcFileName dirs)
-    binT <- getModTime (binFileName dirs)
-    if any (binT <) (srcT : libTs)
-        then True <$ trace "XMonad recompiling because some files have changed."
-        else False <$ trace "XMonad skipping recompile because it is not forced (e.g. via --recompile), and neither xmonad.hs nor any *.hs / *.lhs / *.hsc files in lib/ have been changed."
-  where
-    isSource = flip elem [".hs",".lhs",".hsc"] . takeExtension
-    allFiles t = do
-        let prep = map (t</>) . Prelude.filter (`notElem` [".",".."])
-        cs <- prep <$> E.catch (getDirectoryContents t) (\(SomeException _) -> return [])
-        ds <- filterM doesDirectoryExist cs
-        concat . ((cs \\ ds):) <$> mapM allFiles ds
-shouldCompile _ CompileCabal = return True
-shouldCompile dirs CompileStackGhc{} = do
-    stackYamlT <- getModTime (stackYamlFileName dirs)
-    binT <- getModTime (binFileName dirs)
-    if binT < stackYamlT
-        then True <$ trace "XMonad recompiling because some files have changed."
-        else shouldCompile dirs CompileGhc
-shouldCompile _dirs CompileNixFlake{} = True <$ trace "XMonad recompiling because flake recompilation is being used."
-shouldCompile _dirs CompileNixDefault{} = True <$ trace "XMonad recompiling because nix recompilation is being used."
-shouldCompile _dirs CompileScript{} =
-    True <$ trace "XMonad recompiling because a custom build script is being used."
-
-getModTime :: FilePath -> IO (Maybe UTCTime)
-getModTime f = E.catch (Just <$> getModificationTime f) (\(SomeException _) -> return Nothing)
-
--- | Compile the configuration.
-compile :: Directories -> Compile -> IO ExitCode
-compile dirs method =
-    bracket_ uninstallSignalHandlers installSignalHandlers $
-        withFile (errFileName dirs) WriteMode $ \err -> do
-            let run = runProc err
-            case method of
-                CompileGhc -> do
-                    ghc <- fromMaybe "ghc" <$> lookupEnv "XMONAD_GHC"
-                    run ghc ghcArgs
-                CompileCabal -> run "cabal" ["build"] .&&. copyBinary
-                  where
-                    copyBinary :: IO ExitCode
-                    copyBinary = readProc err "cabal" ["-v0", "list-bin", "."] >>= \ case
-                        Left status -> return status
-                        Right (trim -> path) -> copyBinaryFrom path
-                CompileStackGhc stackYaml ->
-                    run "stack" ["build", "--silent", "--stack-yaml", stackYaml] .&&.
-                    run "stack" ("ghc" : "--stack-yaml" : stackYaml : "--" : ghcArgs)
-                CompileNixFlake ->
-                    run "nix" ["build"] >>= andCopyFromResultDir
-                CompileNixDefault ->
-                    run "nix-build" [] >>= andCopyFromResultDir
-                CompileScript script ->
-                    run script [binFileName dirs]
-  where
-    cwd :: FilePath
-    cwd = cfgDir dirs
-
-    ghcArgs :: [String]
-    ghcArgs = [ "--make"
-              , "xmonad.hs"
-              , "-i" -- only look in @lib@
-              , "-ilib"
-              , "-fforce-recomp"
-              , "-main-is", "main"
-              , "-v0"
-              , "-outputdir", buildDirName dirs
-              , "-o", binFileName dirs
-              ]
-
-    andCopyFromResultDir :: ExitCode -> IO ExitCode
-    andCopyFromResultDir exitCode = do
-      if exitCode == ExitSuccess then copyFromResultDir else return exitCode
-
-    findM :: (Monad m, Foldable t) => (a -> m Bool) -> t a -> m (Maybe a)
-    findM p = foldr (\x -> ifM (p x) (pure $ Just x)) (pure Nothing)
-
-    catchAny :: IO a -> (SomeException -> IO a) -> IO a
-    catchAny = E.catch
-
-    copyFromResultDir :: IO ExitCode
-    copyFromResultDir = do
-      let binaryDirectory = cfgDir dirs </> "result" </> "bin"
-      binFiles <- map (binaryDirectory </>) <$> catchAny (listDirectory binaryDirectory) (\_ -> return [])
-      mfilepath <- findM isExecutable binFiles
-      case mfilepath of
-        Just filepath -> copyBinaryFrom filepath
-        Nothing -> return $ ExitFailure 1
-
-    copyBinaryFrom :: FilePath -> IO ExitCode
-    copyBinaryFrom filepath = copyFile filepath (binFileName dirs) >> return ExitSuccess
-
-    -- waitForProcess =<< System.Process.runProcess, but without closing the err handle
-    runProc :: Handle -> String -> [String] -> IO ExitCode
-    runProc err exe args = do
-        (Nothing, Nothing, Nothing, h) <- createProcess_ "runProc" =<< mkProc err exe args
-        waitForProcess h
-
-    readProc :: Handle -> String -> [String] -> IO (Either ExitCode String)
-    readProc err exe args = do
-        spec <- mkProc err exe args
-        (Nothing, Just out, Nothing, h) <- createProcess_ "readProc" spec{ std_out = CreatePipe }
-        result <- hGetContents out
-        hPutStr err result >> hFlush err
-        waitForProcess h >>= \ case
-            ExitSuccess -> return $ Right result
-            status -> return $ Left status
-
-    mkProc :: Handle -> FilePath -> [FilePath] -> IO CreateProcess
-    mkProc err exe args = do
-        hPutStrLn err $ unwords $ "$" : exe : args
-        hFlush err
-        return (proc exe args){ cwd = Just cwd, std_err = UseHandle err }
-
-    (.&&.) :: Monad m => m ExitCode -> m ExitCode -> m ExitCode
-    cmd1 .&&. cmd2 = cmd1 >>= \case
-        ExitSuccess -> cmd2
-        e -> pure e
-
--- | Check GHC output for deprecation warnings and notify the user if there
--- were any. Report success otherwise.
-checkCompileWarnings :: Directories -> IO ()
-checkCompileWarnings dirs = do
-    ghcErr <- readFile (errFileName dirs)
-    if "-Wdeprecations" `isInfixOf` ghcErr
-      then do
-        let msg = unlines $
-                ["Deprecations detected while compiling xmonad config: " <> srcFileName dirs]
-                ++ lines ghcErr
-                ++ ["","Please correct them or silence using {-# OPTIONS_GHC -Wno-deprecations #-}."]
-        trace msg
-        xmessage msg
-      else
-        trace "XMonad recompilation process exited with success!"
-
--- | Notify the user that compilation failed and what was wrong.
-compileFailed :: Directories -> ExitCode -> IO ()
-compileFailed dirs status = do
-    ghcErr <- readFile (errFileName dirs)
-    let msg = unlines $
-            ["Errors detected while compiling xmonad config: " <> srcFileName dirs]
-            ++ lines (if null ghcErr then show status else ghcErr)
-            ++ ["","Please check the file for errors."]
-    -- nb, the ordering of printing, then forking, is crucial due to
-    -- lazy evaluation
-    trace msg
-    xmessage msg
-
--- | Recompile the xmonad configuration file when any of the following apply:
---
---  * force is 'True'
---
---  * the xmonad executable does not exist
---
---  * the xmonad executable is older than @xmonad.hs@ or any file in
---    the @lib@ directory (under the configuration directory)
---
---  * custom @build@ script is being used
---
--- The -i flag is used to restrict recompilation to the xmonad.hs file only,
--- and any files in the aforementioned @lib@ directory.
---
--- Compilation errors (if any) are logged to the @xmonad.errors@ file
--- in the xmonad data directory.  If GHC indicates failure with a
--- non-zero exit code, an xmessage displaying that file is spawned.
---
--- 'False' is returned if there are compilation errors.
---
-recompile :: MonadIO m => Directories -> Bool -> m Bool
-recompile dirs force = io $ do
-    method <- detectCompile dirs
-    willCompile <- if force
-        then True <$ trace "XMonad recompiling (forced)."
-        else shouldCompile dirs method
-    if willCompile
-      then do
-        status <- compile dirs method
-        if status == ExitSuccess
-            then checkCompileWarnings dirs
-            else compileFailed dirs status
-        pure $ status == ExitSuccess
-      else
-        pure True
-
 -- | Conditionally run an action, using a @Maybe a@ to decide.
 whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
 whenJust mg f = maybe (return ()) f mg
 
 -- | Conditionally run an action, using a 'WXYZ' event to decide
-whenX :: WXYZ Bool -> WXYZ () -> WXYZ ()
-whenX a f = a >>= \b -> when b f
+whenWXYZ :: WXYZ Bool -> WXYZ () -> WXYZ ()
+whenWXYZ a f = a >>= \b -> when b f
 
 -- | A 'trace' for the 'WXYZ' monad. Logs a string to stderr. The result may
 -- be found in your .xsession-errors file
@@ -770,9 +351,9 @@ trace = io . hPutStrLn stderr
 -- avoid zombie processes, and clean up any extant zombie processes.
 installSignalHandlers :: MonadIO m => m ()
 installSignalHandlers = io $ do
-    installHandler openEndedPipe Ignore Nothing
-    installHandler sigCHLD Ignore Nothing
-    (try :: IO a -> IO (Either SomeException a))
+    _ <- installHandler openEndedPipe Ignore Nothing
+    _ <- installHandler sigCHLD Ignore Nothing
+    _ <- (try :: IO a -> IO (Either SomeException a))
       $ fix $ \more -> do
         x <- getAnyProcessStatus False False
         when (isJust x) more
@@ -780,9 +361,6 @@ installSignalHandlers = io $ do
 
 uninstallSignalHandlers :: MonadIO m => m ()
 uninstallSignalHandlers = io $ do
-    installHandler openEndedPipe Default Nothing
-    installHandler sigCHLD Default Nothing
+    _ <- installHandler openEndedPipe Default Nothing
+    _ <- installHandler sigCHLD Default Nothing
     return ()
-
-trim :: String -> String
-trim = reverse . dropWhile isSpace . reverse . dropWhile isSpace
