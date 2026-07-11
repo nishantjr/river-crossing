@@ -4,11 +4,15 @@
 
 module WXYZ.River (
       wxyz
+    , Binding(..)
+    , Dimensions(..)
+    , Output(..)
+    , Position(..)
+    , RiverState(..)
+    , Seat(..)
     , WXYZ
     , WXYZConfig(..)
-    , cacheRiverState
-    , manageAndRender
-    , handleBinding
+    , Window(..)
     , runWXYZ
     , shell
     , (<||>)
@@ -54,8 +58,7 @@ data Output = Output { handle :: RiverOutput
 data Seat = Seat { handle :: RiverSeat }
     deriving (Show)
 
-data Binding = Binding { action :: WXYZ ()
-                       }
+data Binding = Binding { action :: WXYZ () }
 
 -- Cache of River's Window Management state
 data RiverState = RiverState { windows  :: Map RiverWindow Window
@@ -71,113 +74,6 @@ data RiverState = RiverState { windows  :: Map RiverWindow Window
                              -- it to be ok.
                              , newSeats :: [RiverSeat]
                              }
-
-handleBinding :: Event -> WXYZ (Maybe [Request])
-handleBinding (XKBBindingPressed binding) = runMaybeT $
-    do st <- get
-       lift $ fromMaybe (unknownBinding binding) $ fmap action $ M.lookup binding (st.bindings)
-       pure []
-  where
-    unknownBinding b = do
-        liftIO $ putStrLn $ "unknown binding: " ++ (show b)
-
-
-handleBinding _ = pure Nothing
-
-
-manageAndRender :: Event -> WXYZ (Maybe [Request])
-manageAndRender (WMManageStart wm) = runMaybeT $
-    do st <- get
-       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
-       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
-       let height = (fromMaybe (Dimensions 0 0) firstOutput.dimensions).height
-       let dims = map (winProposeDimensions width height (fromIntegral $ length st.windows))  (M.keys st.windows)
-
-       config <- lift ask
-       xkb <- liftIO getRiverXKBBindings
-       binds <- lift $ mapM (uncurry $ bindSeat xkb)
-                        [(o, (mod,sym,act)) |
-                            o <- st.newSeats,
-                            ((mod, sym), act) <- M.toList config.keyBindings
-                        ]
-
-       case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
-         (Just lastWin, Just firstSeat) -> liftIO $ do putStrLn $ "------- " ++ (show (lastWin, firstSeat))
-                                                       putStrLn $ show (M.keys st.outputs, M.keys st.windows)
-                                                       _river_window_v1_focus_window firstSeat lastWin
-         _ -> pure ()
-
-       pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
-  where
-    winProposeDimensions outputWidth outputHeight numWins handle
-        = (WindowProposeDimensions handle (outputWidth `div` numWins) outputHeight)
-    bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
-    bindSeat xkb seat (mod, sym, act) =
-      do binding <- liftIO $ riverXKBGetBinding xkb seat sym mod
-         st <- get
-         put st { bindings = M.insert binding (Binding act) st.bindings
-                , newSeats = L.delete seat st.newSeats
-                }
-         liftIO $ riverXKBBindingAddEventListeners binding
-         pure [(XKBBindingEnable binding)]
-
-
-manageAndRender (WMRenderStart wm) = runMaybeT $
-    do wins <- windows <$> get
-       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
-       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
-       let positions = map (winSetPosition width (fromIntegral $ length wins))  (zip [0..] $ M.elems wins)
-       pure $ positions ++ [ (WMRenderFinish wm) ]
-  where
-    winSetPosition outputWidth numWins (index, win)
-        = (NodeSetPosition (win.node) (index * outputWidth `div` numWins) 0)
-
-manageAndRender _ = pure Nothing
-
-cacheRiverState :: Event -> WXYZ (Maybe [Request])
-cacheRiverState (WMWindow _wm win) = runMaybeT $
-    do st <- get
-       let node = riverWindowGetNode win
-       put $ st { windows = M.insert win (Window win node) (windows st) }
-       pure []
-cacheRiverState (WindowClosed win) = runMaybeT $
-    do st <- get
-       put $ st { windows = M.delete win (windows st) }
-       pure []
-
-cacheRiverState (WMOutput _wm output) = runMaybeT $
-    do st <- get
-       put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
-       pure [ ]
-cacheRiverState (OutputRemoved output) = runMaybeT $
-    do st <- get
-       put $ st { outputs = M.delete output (outputs st) }
-       pure []
-cacheRiverState (OutputWlOutput output wl) = runMaybeT $
-    do st <- get
-       put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
-       pure []
-cacheRiverState (OutputPosition output x y) = runMaybeT $
-    do st <- get
-       put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
-       pure []
-cacheRiverState (OutputDimensions output width height) = runMaybeT $
-    do st <- get
-       put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
-       pure []
-
-cacheRiverState (WMSeat _wm seat) = runMaybeT $
-    do st <- get
-       put $ st { seats = M.insert seat (Seat seat) (seats st)
-                , newSeats = st.newSeats ++ [seat]
-                }
-       pure []
-cacheRiverState (SeatRemoved seat) = runMaybeT $
-    do st <- get
-       put $ st { seats = M.delete seat (seats st) }
-       pure []
-
-cacheRiverState _ = pure Nothing
 
 -- Main Loop
 -- =========
