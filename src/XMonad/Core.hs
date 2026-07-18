@@ -62,7 +62,7 @@ import Data.Maybe (isJust,fromMaybe)
 
 -- | Per Graphics.X11.Xlib.Types.
 type Position      = Int32
-type Dimension     = Word32
+type Dimension     = Int32
 
 -- | counterpart of an X11 @XRectangle@ structure
 data Rectangle = Rectangle {

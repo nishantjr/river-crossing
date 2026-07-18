@@ -5,7 +5,7 @@
 module Main (main) where
 
 import           Control.Monad.State
-import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Control.Monad.Trans.Maybe (runMaybeT, hoistMaybe)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import qualified Data.List as L
 import qualified Data.Map as M
@@ -40,7 +40,8 @@ import           WXYZ.Protocol
                     )
 import           WXYZ.XKB
 
-import           XMonad.Core (WXYZ, Layout, LayoutClass)
+import           XMonad.Core (WXYZ, Layout, LayoutClass(..), Rectangle(..))
+import           XMonad.StackSet (Stack(..))
 import qualified XMonad.Layout as L
 import           XMonad.Layout ((|||))
 
@@ -56,14 +57,26 @@ handleBinding (XKBBindingPressed binding) = runMaybeT $
 
 handleBinding _ = pure Nothing
 
+-- | Get a rectangle for a layout.
+outputRect :: Output -> (Maybe Rectangle)
+outputRect o =
+    do dims <- o.dimensions
+       pos <- o.position
+       pure (Rectangle pos.x pos.y dims.width dims.height)
 
-manageAndRender :: LayoutClass layout a => layout a -> Event -> WXYZ (Maybe [Request])
-manageAndRender _ (WMManageStart wm) = runMaybeT $
+-- | Retrieve a XMonad stack from the River's layout, using output to decide the focused window.
+-- | XXX The focused window isn't kept track of right now.
+toStack output (w:ws) = Just $ Stack w [] ws
+toStack output []     = Nothing
+
+manageAndRender :: LayoutClass layout Window => layout Window -> Event -> WXYZ (Maybe [Request])
+manageAndRender l (WMManageStart wm) = runMaybeT $
     do st <- get
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
-       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
-       let height = (fromMaybe (Dimensions 0 0) firstOutput.dimensions).height
-       let dims = map (winProposeDimensions width height (fromIntegral $ length st.windows))  (M.keys st.windows)
+       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+       (winrects, newLayout) <- lift $
+            maybe (emptyLayout l rect) (doLayout l rect) (toStack firstOutput (M.elems st.windows))
+       let dims = map mkProposeDim winrects
 
        config <- lift ask
        xkb <- liftIO getRiverXKBBindings
@@ -81,8 +94,8 @@ manageAndRender _ (WMManageStart wm) = runMaybeT $
 
        pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
-    winProposeDimensions outputWidth outputHeight numWins handle
-        = (WindowProposeDimensions handle (outputWidth `div` numWins) outputHeight)
+    mkProposeDim (win, (Rectangle _x _y w h))
+        = (WindowProposeDimensions win.handle w h)
     bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
     bindSeat xkb seat (mod, sym, act) =
       do binding <- liftIO $ riverXKBGetBinding xkb seat sym mod
@@ -94,15 +107,21 @@ manageAndRender _ (WMManageStart wm) = runMaybeT $
          pure [(XKBBindingEnable binding)]
 
 
-manageAndRender _ (WMRenderStart wm) = runMaybeT $
-    do wins <- windows <$> get
+manageAndRender l (WMRenderStart wm) = runMaybeT $
+    do st <- get
+       wins <- windows <$> get
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
-       let width =  (fromMaybe (Dimensions 0 0) firstOutput.dimensions).width
-       let positions = map (winSetPosition width (fromIntegral $ length wins))  (zip [0..] $ M.elems wins)
+       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+
+       (winrects, newLayout) <- lift $
+            maybe (emptyLayout l rect) (doLayout l rect) (toStack firstOutput (M.elems st.windows))
+       let positions = map mkPositions winrects
        pure $ positions ++ [ (WMRenderFinish wm) ]
   where
-    winSetPosition outputWidth numWins (index, win)
-        = (NodeSetPosition (win.node) (index * outputWidth `div` numWins) 0)
+    toStack output (w:ws) = Just $ Stack w [] ws
+    toStack output []     = Nothing
+    mkPositions (win, (Rectangle x y _w _h))
+        = (NodeSetPosition win.node x y)
 
 manageAndRender _ _ = pure Nothing
 
@@ -163,7 +182,7 @@ main = wxyz $ WXYZConfig {
     keyBindings = M.fromList
         [ ((mod_mod1, xkb_key_t),      shell "alacritty")
         ]
-    myLayout = tiled ||| L.Mirror tiled ||| L.Full
+    myLayout = tiled ---  ||| L.Mirror tiled ||| L.Full
       where
         tiled   = L.Tall nmaster delta ratio
         nmaster = 1      -- Default number of windows in the master pane
