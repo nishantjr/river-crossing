@@ -181,6 +181,7 @@ main = wxyz $ WXYZConfig {
   where
     keyBindings = M.fromList
         [ ((mod_mod1, xkb_key_t),      shell "alacritty")
+        , ((mod_mod1, xkb_key_d),      shell "bemenu-run")
         ]
     myLayout = tiled ---  ||| L.Mirror tiled ||| L.Full
       where
