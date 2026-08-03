@@ -29,7 +29,7 @@ module XMonad.Core (
     WXYZ, WindowSet, WindowSpace,
     ScreenId(..), ScreenDetail(..),
     LayoutClass(..), Layout(..), Rectangle(..),
-    readsLayout, Typeable, Message,
+    Typeable, Message,
     SomeMessage(..), fromMessage, LayoutMessages(..),
     runWXYZ, io,
   ) where
@@ -77,12 +77,7 @@ newtype ScreenDetail = SD { screenRect :: Rectangle }
 
 -- | An existential type that can hold any object that is in 'Read'
 --   and 'LayoutClass'.
-data Layout a = forall l. (LayoutClass l a, Read (l a)) => Layout (l a)
-
--- | Using the 'Layout' as a witness, parse existentially wrapped windows
--- from a 'String'.
-readsLayout :: Layout a -> String -> [(Layout a, String)]
-readsLayout (Layout l) s = [(Layout (asTypeOf x l), rs) | (x, rs) <- reads s]
+data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 
 -- | Every layout must be an instance of 'LayoutClass', which defines
 -- the basic layout operations along with a sensible default for each.
