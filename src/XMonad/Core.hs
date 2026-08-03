@@ -42,20 +42,8 @@ import Prelude
 import Control.Monad.State
 import Data.Typeable
 
-type WindowSet   = StackSet  WorkspaceId (Layout RiverWindow) RiverWindow ScreenId ScreenDetail
-type WindowSpace = Workspace WorkspaceId (Layout RiverWindow) RiverWindow
-
 -- | Virtual workspace indices
 type WorkspaceId = String
-
--- | Physical screen indices
-newtype ScreenId    = S Int deriving (Eq,Ord,Show,Read,Enum,Num,Integral,Real)
-
-
-
--- | The 'Rectangle' with screen dimensions
-newtype ScreenDetail = SD { screenRect :: Rectangle }
-    deriving (Eq,Show, Read)
 
 ------------------------------------------------------------------------
 -- LayoutClass handling. See particular instances in Operations.hs
