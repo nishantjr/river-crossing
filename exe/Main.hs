@@ -20,7 +20,7 @@ import           WXYZ.River
                     , Output(..)
                     , Position(..)
                     , Rectangle(..)
-                    , RiverState(..)
+                    , WXYZState(..)
                     , Seat(..)
                     , WXYZ
                     , WXYZConfig(..)
@@ -125,55 +125,55 @@ manageAndRender l (WMRenderStart wm) = runMaybeT $
 
 manageAndRender _ _ = pure Nothing
 
-cacheRiverState :: Event -> WXYZ (Maybe [Request])
-cacheRiverState (WMWindow _wm win) = runMaybeT $
+cacheWXYZState :: Event -> WXYZ (Maybe [Request])
+cacheWXYZState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
        put $ st { windows = M.insert win (Window win node) (windows st) }
        pure []
-cacheRiverState (WindowClosed win) = runMaybeT $
+cacheWXYZState (WindowClosed win) = runMaybeT $
     do st <- get
        put $ st { windows = M.delete win (windows st) }
        pure []
 
-cacheRiverState (WMOutput _wm output) = runMaybeT $
+cacheWXYZState (WMOutput _wm output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
        pure [ ]
-cacheRiverState (OutputRemoved output) = runMaybeT $
+cacheWXYZState (OutputRemoved output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.delete output (outputs st) }
        pure []
-cacheRiverState (OutputWlOutput output wl) = runMaybeT $
+cacheWXYZState (OutputWlOutput output wl) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
        pure []
-cacheRiverState (OutputPosition output x y) = runMaybeT $
+cacheWXYZState (OutputPosition output x y) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
        pure []
-cacheRiverState (OutputDimensions output width height) = runMaybeT $
+cacheWXYZState (OutputDimensions output width height) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
        pure []
 
-cacheRiverState (WMSeat _wm seat) = runMaybeT $
+cacheWXYZState (WMSeat _wm seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.insert seat (Seat seat) (seats st)
                 , newSeats = st.newSeats ++ [seat]
                 }
        pure []
-cacheRiverState (SeatRemoved seat) = runMaybeT $
+cacheWXYZState (SeatRemoved seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.delete seat (seats st) }
        pure []
 
-cacheRiverState _ = pure Nothing
+cacheWXYZState _ = pure Nothing
 
 
 main :: IO ()
 main = wxyz $ WXYZConfig {
-                   onRiverEvent = (cacheRiverState <||> manageAndRender myLayout <||> handleBinding)
+                   onRiverEvent = (cacheWXYZState <||> manageAndRender myLayout <||> handleBinding)
                  , onStartup =    shell "swaybg -c 123123"
                                >> shell "waybar"
                  , keyBindings

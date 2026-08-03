@@ -12,7 +12,7 @@ module WXYZ.River (
 
     , Binding(..), Output(..), Seat(..), Window(..)
 
-    , RiverState(..)
+    , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
     , (<||>)
@@ -58,8 +58,8 @@ data Rectangle = Rectangle {
         }
     deriving (Eq, Read, Show)
 
--- Managing River's State
--- ======================
+-- Managing State
+-- ==============
 
 data Output = Output { handle :: RiverOutput
                      , wlOutput :: Maybe Word32
@@ -78,7 +78,7 @@ data Seat = Seat { handle :: RiverSeat }
 data Binding = Binding { action :: WXYZ () }
 
 -- Cache of River's Window Management state
-data RiverState = RiverState { windows  :: Map RiverWindow Window
+data WXYZState = WXYZState { windows  :: Map RiverWindow Window
                              , outputs  :: Map RiverOutput Output
                              , seats    :: Map RiverSeat   Seat
                              , bindings :: Map RiverXKBBinding Binding
@@ -98,11 +98,11 @@ data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
                              , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
                              }
 
-type WXYZ a = ReaderT WXYZConfig (StateT RiverState IO) a
+type WXYZ a = ReaderT WXYZConfig (StateT WXYZState IO) a
 
 --- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
 --  state. Return the result, and final state
-runWXYZ :: WXYZConfig -> RiverState -> WXYZ a -> IO (a, RiverState)
+runWXYZ :: WXYZConfig -> WXYZState -> WXYZ a -> IO (a, WXYZState)
 runWXYZ c st act = runStateT (runReaderT act c) st
 
 
@@ -269,7 +269,7 @@ wxyz config
          riverWMAddEventListeners riverWM
          void $ runWXYZ
             config
-            (RiverState M.empty M.empty M.empty M.empty [])
+            (WXYZState M.empty M.empty M.empty M.empty [])
             (onStartup config >> eventLoop display)
   where
     eventLoop :: WlDisplay -> WXYZ ()
