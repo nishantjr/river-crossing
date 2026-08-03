@@ -26,8 +26,7 @@
 -----------------------------------------------------------------------------
 
 module XMonad.Core (
-    WXYZ, WindowSet, WindowSpace,
-    ScreenId(..), ScreenDetail(..),
+    WXYZ,
     LayoutClass(..), Layout(..), Rectangle(..),
     Typeable, Message,
     SomeMessage(..), fromMessage, LayoutMessages(..),
@@ -35,27 +34,13 @@ module XMonad.Core (
   ) where
 
 import WXYZ.Protocol (RiverWindow)
-import WXYZ.River (WXYZ, runWXYZ)
+import WXYZ.River (WXYZ, Rectangle(..), runWXYZ)
 
 import XMonad.StackSet hiding (modify)
 
 import Prelude
 import Control.Monad.State
-import Data.Int (Int32)
 import Data.Typeable
-
--- | Per Graphics.X11.Xlib.Types.
-type Position      = Int32
-type Dimension     = Int32
-
--- | counterpart of an X11 @XRectangle@ structure
-data Rectangle = Rectangle {
-        rect_x      :: !Position,
-        rect_y      :: !Position,
-        rect_width  :: !Dimension,
-        rect_height :: !Dimension
-        }
-    deriving (Eq, Read, Show)
 
 type WindowSet   = StackSet  WorkspaceId (Layout RiverWindow) RiverWindow ScreenId ScreenDetail
 type WindowSpace = Workspace WorkspaceId (Layout RiverWindow) RiverWindow

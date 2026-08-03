@@ -8,6 +8,7 @@ module WXYZ.River (
     , Dimensions(..)
     , Output(..)
     , Position(..)
+    , Rectangle(..)
     , RiverState(..)
     , Seat(..)
     , WXYZ
@@ -26,34 +27,47 @@ import           WXYZ.XKB
 import           Control.Monad (void)
 import           Control.Monad.State
 import           Control.Monad.Extra (fromMaybeM)
-import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
-import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Control.Monad.Trans.Reader (runReaderT, ReaderT)
 import           Data.Int (Int32)
-import qualified Data.List as L
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Maybe (fromMaybe, listToMaybe)
 import           Data.Word
 import qualified System.Process as P
+
+-- Dimensions and Positions
+-- ========================
+
+data Position = Position { x :: Int32, y :: Int32 }
+    deriving (Eq, Read, Show)
+
+-- XXX For some reason, River/Wayland dimensions are signed.
+-- Document why this is.
+type Dimension     = Int32
+data Dimensions = Dimensions { width :: Dimension, height :: Dimension }
+    deriving (Eq, Read, Show)
+
+-- capatibility for XMonad
+data Rectangle = Rectangle {
+        rect_x      :: !Int32,
+        rect_y      :: !Int32,
+        rect_width  :: !Dimension,
+        rect_height :: !Dimension
+        }
+    deriving (Eq, Read, Show)
 
 -- Managing River's State
 -- ======================
 
-data Window = Window { handle :: RiverWindow
-                     , node   :: RiverNode
-                     }
-    deriving (Show)
-
-data Position   = Position { x :: Int32, y :: Int32 }
-    deriving (Show)
-data Dimensions = Dimensions { width :: Int32, height :: Int32 }
-    deriving (Show)
 data Output = Output { handle :: RiverOutput
                      , wlOutput :: Maybe Word32
                      , position :: Maybe Position
                      , dimensions :: Maybe Dimensions
-                     }
-    deriving (Show)
+                     } deriving (Show)
+
+data Window = Window { handle :: RiverWindow
+                     , node   :: RiverNode
+                     } deriving (Show)
+
 
 data Seat = Seat { handle :: RiverSeat }
     deriving (Show)
