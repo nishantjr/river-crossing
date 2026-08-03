@@ -92,6 +92,19 @@ data RiverState = RiverState { windows  :: Map RiverWindow Window
                              , newSeats :: [RiverSeat]
                              }
 
+-- Immutable configuration
+data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
+                             , onStartup    :: WXYZ ()
+                             , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
+                             }
+
+type WXYZ a = ReaderT WXYZConfig (StateT RiverState IO) a
+
+--- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
+--  state. Return the result, and final state
+runWXYZ :: WXYZConfig -> RiverState -> WXYZ a -> IO (a, RiverState)
+runWXYZ c st act = runStateT (runReaderT act c) st
+
 
 -- Layouts
 -- =======
@@ -240,19 +253,6 @@ io = liftIO
 
 -- Main Loop
 -- =========
-
--- immutable configuration.
-data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
-                             , onStartup    :: WXYZ ()
-                             , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
-                             }
-
-type WXYZ a = ReaderT WXYZConfig (StateT RiverState IO) a
-
---- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
---  state. Return the result, and final state
-runWXYZ :: WXYZConfig -> RiverState -> WXYZ a -> IO (a, RiverState)
-runWXYZ c st act = runStateT (runReaderT act c) st
 
 -- | Entry point for the window manager.
 wxyz :: WXYZConfig -> IO ()
