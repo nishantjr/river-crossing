@@ -64,10 +64,12 @@ outputRect o =
        pos <- o.position
        pure (Rectangle pos.x pos.y dims.width dims.height)
 
--- | Retrieve a XMonad stack from the River's layout, using output to decide the focused window.
--- | XXX The focused window isn't kept track of right now.
-toStack output (w:ws) = Just $ Stack w [] ws
-toStack output []     = Nothing
+-- | Generate an XMonad Stack from the River's state.
+-- XXX Eventually, we should use the Seat information to get the currently
+-- focused windows.
+toStack :: [Window] -> Maybe (Stack Window)
+toStack (w:ws) = Just $ Stack w [] ws
+toStack []     = Nothing
 
 manageAndRender :: LayoutClass layout Window => layout Window -> Event -> WXYZ (Maybe [Request])
 manageAndRender l (WMManageStart wm) = runMaybeT $
@@ -75,7 +77,7 @@ manageAndRender l (WMManageStart wm) = runMaybeT $
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
        (winrects, newLayout) <- lift $
-            maybe (emptyLayout l rect) (doLayout l rect) (toStack firstOutput (M.elems st.windows))
+            maybe (emptyLayout l rect) (doLayout l rect) (toStack $ M.elems st.windows)
        let dims = map mkProposeDim winrects
 
        config <- lift ask
@@ -114,12 +116,10 @@ manageAndRender l (WMRenderStart wm) = runMaybeT $
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
        (winrects, newLayout) <- lift $
-            maybe (emptyLayout l rect) (doLayout l rect) (toStack firstOutput (M.elems st.windows))
+            maybe (emptyLayout l rect) (doLayout l rect) (toStack $ M.elems st.windows)
        let positions = map mkPositions winrects
        pure $ positions ++ [ (WMRenderFinish wm) ]
   where
-    toStack output (w:ws) = Just $ Stack w [] ws
-    toStack output []     = Nothing
     mkPositions (win, (Rectangle x y _w _h))
         = (NodeSetPosition win.node x y)
 
