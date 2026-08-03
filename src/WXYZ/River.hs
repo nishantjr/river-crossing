@@ -15,22 +15,24 @@ module WXYZ.River (
     , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
-    , (<||>)
   ) where
 
 import           Prelude hiding (mod)
 
 import           WXYZ.Protocol
 import           WXYZ.XKB
-import           XMonad.StackSet hiding (modify)
+import           XMonad.StackSet hiding (modify, layout)
 
 import           Control.Monad (void)
 import           Control.Monad.State
 import           Control.Monad.Extra (fromMaybeM)
-import           Control.Monad.Trans.Reader (runReaderT, ReaderT)
+import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
+import qualified Data.List as L
 import           Data.Map (Map)
 import qualified Data.Map as M
+import           Data.Maybe (fromMaybe, listToMaybe)
 import           Data.Typeable
 import           Data.Word
 import qualified System.Process as P
@@ -93,17 +95,153 @@ data WXYZState = WXYZState { windows  :: Map RiverWindow Window
                              }
 
 -- Immutable configuration
-data WXYZConfig = WXYZConfig { onRiverEvent :: Event -> WXYZ (Maybe [Request])
-                             , onStartup    :: WXYZ ()
-                             , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
-                             }
+data WXYZConfig l = WXYZConfig
+        { layout       :: l Window
+        , onStartup    :: WXYZ ()
+        , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
+        }
 
-type WXYZ a = ReaderT WXYZConfig (StateT WXYZState IO) a
+type WXYZ a = ReaderT (WXYZConfig Layout) (StateT WXYZState IO) a
 
 --- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
 --  state. Return the result, and final state
-runWXYZ :: WXYZConfig -> WXYZState -> WXYZ a -> IO (a, WXYZState)
+runWXYZ :: WXYZConfig Layout -> WXYZState -> WXYZ a -> IO (a, WXYZState)
 runWXYZ c st act = runStateT (runReaderT act c) st
+
+
+-- Low-level handling of River events
+-- ==================================
+
+handleBinding :: Event -> WXYZ (Maybe [Request])
+handleBinding (XKBBindingPressed binding) = runMaybeT $
+    do st <- get
+       lift $ fromMaybe (unknownBinding binding) $ fmap action $ M.lookup binding (st.bindings)
+       pure []
+  where
+    unknownBinding b = do
+        liftIO $ putStrLn $ "unknown binding: " ++ (show b)
+
+
+handleBinding _ = pure Nothing
+
+-- | Get a rectangle for a layout.
+outputRect :: Output -> (Maybe Rectangle)
+outputRect o =
+    do dims <- o.dimensions
+       pos <- o.position
+       pure (Rectangle pos.x pos.y dims.width dims.height)
+
+-- | Generate an XMonad Stack from the River's state.
+-- XXX Eventually, we should use the Seat information to get the currently
+-- focused windows.
+toStack :: [Window] -> Maybe (Stack Window)
+toStack (w:ws) = Just $ Stack w [] ws
+toStack []     = Nothing
+
+manageAndRender :: Event -> WXYZ (Maybe [Request])
+manageAndRender (WMManageStart wm) = runMaybeT $
+    do st <- get
+       config <- lift ask
+       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+       (winrects, newLayout) <- lift $
+            maybe (emptyLayout config.layout rect)
+                  (doLayout config.layout rect)
+                  (toStack $ M.elems st.windows)
+       let dims = map mkProposeDim winrects
+
+       xkb <- liftIO getRiverXKBBindings
+       binds <- lift $ mapM (uncurry $ bindSeat xkb)
+                        [(o, (modifier,sym,act)) |
+                            o <- st.newSeats,
+                            ((modifier,sym),act) <- M.toList config.keyBindings
+                        ]
+
+       case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
+         (Just lastWin, Just firstSeat) -> liftIO $ do putStrLn $ "------- " ++ (show (lastWin, firstSeat))
+                                                       putStrLn $ show (M.keys st.outputs, M.keys st.windows)
+                                                       _river_window_v1_focus_window firstSeat lastWin
+         _ -> pure ()
+
+       pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
+  where
+    mkProposeDim (win, (Rectangle _x _y w h))
+        = (WindowProposeDimensions win.handle w h)
+    bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
+    bindSeat xkb seat (modifier, sym, act) =
+      do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
+         st <- get
+         put st { bindings = M.insert binding (Binding act) st.bindings
+                , newSeats = L.delete seat st.newSeats
+                }
+         liftIO $ riverXKBBindingAddEventListeners binding
+         pure [(XKBBindingEnable binding)]
+
+
+manageAndRender (WMRenderStart wm) = runMaybeT $
+    do st <- get
+       config <- lift ask
+
+       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+
+       (winrects, newLayout) <- lift $
+            maybe (emptyLayout config.layout rect)
+                  (doLayout config.layout rect)
+                  (toStack $ M.elems st.windows)
+       let positions = map mkPositions winrects
+       pure $ positions ++ [ (WMRenderFinish wm) ]
+  where
+    mkPositions (win, (Rectangle x y _w _h))
+        = (NodeSetPosition win.node x y)
+
+manageAndRender _ = pure Nothing
+
+cacheWXYZState :: Event -> WXYZ (Maybe [Request])
+cacheWXYZState (WMWindow _wm win) = runMaybeT $
+    do st <- get
+       let node = riverWindowGetNode win
+       put $ st { windows = M.insert win (Window win node) (windows st) }
+       pure []
+cacheWXYZState (WindowClosed win) = runMaybeT $
+    do st <- get
+       put $ st { windows = M.delete win (windows st) }
+       pure []
+
+cacheWXYZState (WMOutput _wm output) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
+       pure [ ]
+cacheWXYZState (OutputRemoved output) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.delete output (outputs st) }
+       pure []
+cacheWXYZState (OutputWlOutput output wl) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
+       pure []
+cacheWXYZState (OutputPosition output x y) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
+       pure []
+cacheWXYZState (OutputDimensions output width height) = runMaybeT $
+    do st <- get
+       put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
+       pure []
+
+cacheWXYZState (WMSeat _wm seat) = runMaybeT $
+    do st <- get
+       put $ st { seats = M.insert seat (Seat seat) (seats st)
+                , newSeats = st.newSeats ++ [seat]
+                }
+       pure []
+cacheWXYZState (SeatRemoved seat) = runMaybeT $
+    do st <- get
+       put $ st { seats = M.delete seat (seats st) }
+       pure []
+
+cacheWXYZState _ = pure Nothing
+
 
 
 -- Layouts
@@ -208,7 +346,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     description :: layout a -> String
     description      = show
 
-instance LayoutClass Layout RiverWindow where
+instance LayoutClass Layout Window where
     runLayout (Workspace i (Layout l) ms) r = fmap (fmap Layout) `fmap` runLayout (Workspace i l ms) r
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
     emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
@@ -248,7 +386,7 @@ instance Message LayoutMessages
 -- =========
 
 -- | Entry point for the window manager.
-wxyz :: WXYZConfig -> IO ()
+wxyz :: (LayoutClass l Window) => WXYZConfig l -> IO ()
 wxyz config
     = do Just display <- wlDisplayConnect -- TODO: This should print an
                                           -- error message.
@@ -260,8 +398,9 @@ wxyz config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
+         let config' = config{ layout=Layout config.layout }
          void $ runWXYZ
-            config
+            config'
             (WXYZState M.empty M.empty M.empty M.empty [])
             (onStartup config >> eventLoop display)
   where
@@ -272,9 +411,12 @@ wxyz config
              Nothing -> pure ()
              Just e' -> do liftIO $ putStrLn $ "====" ++ (show e')
                            requests <- fromMaybeM (unhandledEvent e')
-                                                  (onRiverEvent config e')
+                                                  (onRiverEvent e')
                            _ <- liftIO $ mapM (sendRequest display) requests
                            eventLoop display
+    onRiverEvent =      cacheWXYZState
+                   <||> manageAndRender
+                   <||> handleBinding
     unhandledEvent e
         = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
              pure []
