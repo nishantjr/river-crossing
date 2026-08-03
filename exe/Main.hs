@@ -5,8 +5,8 @@
 module Main (main) where
 
 import           Control.Monad.State
-import           Control.Monad.Trans.Maybe (runMaybeT, hoistMaybe)
-import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
+import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Control.Monad.Trans.Reader (ask)
 import qualified Data.List as L
 import qualified Data.Map as M
 import           Data.Maybe (fromMaybe, listToMaybe)
@@ -35,12 +35,11 @@ import           WXYZ.Protocol
                     , Event(..)
                     , RiverXKBBindings
                     , RiverSeat
-                    , RiverWindow
                     , Modifier
                     )
 import           WXYZ.XKB
 
-import           XMonad.Core (WXYZ, Layout, LayoutClass(..), Rectangle(..))
+import           XMonad.Core (WXYZ, LayoutClass(..), Rectangle(..))
 import           XMonad.StackSet (Stack(..))
 import qualified XMonad.Layout as L
 import           XMonad.Layout ((|||))
@@ -83,9 +82,9 @@ manageAndRender l (WMManageStart wm) = runMaybeT $
        config <- lift ask
        xkb <- liftIO getRiverXKBBindings
        binds <- lift $ mapM (uncurry $ bindSeat xkb)
-                        [(o, (mod,sym,act)) |
+                        [(o, (modifier,sym,act)) |
                             o <- st.newSeats,
-                            ((mod, sym), act) <- M.toList config.keyBindings
+                            ((modifier,sym),act) <- M.toList config.keyBindings
                         ]
 
        case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
@@ -99,8 +98,8 @@ manageAndRender l (WMManageStart wm) = runMaybeT $
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win.handle w h)
     bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
-    bindSeat xkb seat (mod, sym, act) =
-      do binding <- liftIO $ riverXKBGetBinding xkb seat sym mod
+    bindSeat xkb seat (modifier, sym, act) =
+      do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
          st <- get
          put st { bindings = M.insert binding (Binding act) st.bindings
                 , newSeats = L.delete seat st.newSeats
@@ -111,7 +110,6 @@ manageAndRender l (WMManageStart wm) = runMaybeT $
 
 manageAndRender l (WMRenderStart wm) = runMaybeT $
     do st <- get
-       wins <- windows <$> get
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
