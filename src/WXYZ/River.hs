@@ -244,13 +244,6 @@ data LayoutMessages = Hide              -- ^ sent when a layout becomes non-visi
 
 instance Message LayoutMessages
 
--- ---------------------------------------------------------------------
--- General utilities
-
--- | Lift an 'IO' action into the 'WXYZ' monad
-io :: MonadIO m => IO a -> m a
-io = liftIO
-
 -- Main Loop
 -- =========
 
