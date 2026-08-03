@@ -197,50 +197,50 @@ manageAndRender (WMRenderStart wm) = runMaybeT $
 
 manageAndRender _ = pure Nothing
 
-cacheWXYZState :: Event -> WXYZ (Maybe [Request])
-cacheWXYZState (WMWindow _wm win) = runMaybeT $
+cacheRiverState :: Event -> WXYZ (Maybe [Request])
+cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
        put $ st { windows = M.insert win (Window win node) (windows st) }
        pure []
-cacheWXYZState (WindowClosed win) = runMaybeT $
+cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
        put $ st { windows = M.delete win (windows st) }
        pure []
 
-cacheWXYZState (WMOutput _wm output) = runMaybeT $
+cacheRiverState (WMOutput _wm output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
        pure [ ]
-cacheWXYZState (OutputRemoved output) = runMaybeT $
+cacheRiverState (OutputRemoved output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.delete output (outputs st) }
        pure []
-cacheWXYZState (OutputWlOutput output wl) = runMaybeT $
+cacheRiverState (OutputWlOutput output wl) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
        pure []
-cacheWXYZState (OutputPosition output x y) = runMaybeT $
+cacheRiverState (OutputPosition output x y) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
        pure []
-cacheWXYZState (OutputDimensions output width height) = runMaybeT $
+cacheRiverState (OutputDimensions output width height) = runMaybeT $
     do st <- get
        put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
        pure []
 
-cacheWXYZState (WMSeat _wm seat) = runMaybeT $
+cacheRiverState (WMSeat _wm seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.insert seat (Seat seat) (seats st)
                 , newSeats = st.newSeats ++ [seat]
                 }
        pure []
-cacheWXYZState (SeatRemoved seat) = runMaybeT $
+cacheRiverState (SeatRemoved seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.delete seat (seats st) }
        pure []
 
-cacheWXYZState _ = pure Nothing
+cacheRiverState _ = pure Nothing
 
 
 
@@ -414,7 +414,7 @@ wxyz config
                                                   (onRiverEvent e')
                            _ <- liftIO $ mapM (sendRequest display) requests
                            eventLoop display
-    onRiverEvent =      cacheWXYZState
+    onRiverEvent =      cacheRiverState
                    <||> manageAndRender
                    <||> handleBinding
     unhandledEvent e
