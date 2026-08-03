@@ -16,12 +16,15 @@ import           WXYZ.River
                     , wxyz
                     , Binding(..)
                     , Dimensions(..)
+                    , LayoutClass(..)
                     , Output(..)
                     , Position(..)
+                    , Rectangle(..)
                     , RiverState(..)
                     , Seat(..)
-                    , Window(..)
+                    , WXYZ
                     , WXYZConfig(..)
+                    , Window(..)
                     , (<||>)
                     )
 import           WXYZ.Protocol
@@ -39,7 +42,6 @@ import           WXYZ.Protocol
                     )
 import           WXYZ.XKB
 
-import           XMonad.Core (WXYZ, LayoutClass(..), Rectangle(..))
 import           XMonad.StackSet (Stack(..))
 import qualified XMonad.Layout as L
 import           XMonad.Layout ((|||))

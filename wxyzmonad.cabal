@@ -26,7 +26,6 @@ library
     exposed-modules:  WXYZ.Protocol
                     , WXYZ.XKB
                     , WXYZ.River
-                    , XMonad.Core
                     , XMonad.Layout
                     , XMonad.StackSet
     include-dirs:     .build/protocol/,

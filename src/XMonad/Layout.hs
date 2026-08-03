@@ -26,12 +26,17 @@ module XMonad.Layout (
 
   ) where
 
-import XMonad.Core
-
+import           WXYZ.River
+    ( LayoutClass(..)
+    , Message, SomeMessage(..), LayoutMessages(..), fromMessage
+    , Rectangle(..)
+    , WXYZ
+    )
 import qualified XMonad.StackSet as W
-import Control.Arrow ((***), second)
-import Control.Monad
-import Data.Maybe (fromMaybe)
+
+import           Control.Arrow ((***), second)
+import           Control.Monad
+import           Data.Maybe (fromMaybe)
 
 ------------------------------------------------------------------------
 
