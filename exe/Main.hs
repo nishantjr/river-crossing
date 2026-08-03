@@ -1,12 +1,8 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# OPTIONS -Wno-unused-top-binds #-} -- Record fields
-
 module Main (main) where
 
 import qualified Data.Map as M
 
-import           WXYZ.River (shell , wxyz , WXYZConfig(..))
+import           WXYZ.River (sendMessage, shell, wxyz , WXYZConfig(..))
 import           WXYZ.Protocol (mod_mod1)
 import           WXYZ.XKB
 
@@ -24,8 +20,9 @@ main = wxyz $ WXYZConfig {
     keyBindings = M.fromList
         [ ((mod_mod1, xkb_key_t),      shell "alacritty")
         , ((mod_mod1, xkb_key_d),      shell "bemenu-run")
+        , ((mod_mod1, xkb_key_Tab),    sendMessage L.NextLayout)
         ]
-    myLayout = tiled ---  ||| L.Mirror tiled ||| L.Full
+    myLayout = tiled -- ||| L.Mirror tiled ||| L.Full
       where
         tiled   = L.Tall nmaster delta ratio
         nmaster = 1      -- Default number of windows in the master pane

@@ -151,6 +151,7 @@ data Request = WMManageFinish RiverWM
              | WindowProposeDimensions RiverWindow Int32 Int32
 
              | XKBBindingEnable RiverXKBBinding
+    deriving Show
 
 
 #include "cbits/river.h"

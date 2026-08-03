@@ -12,3 +12,6 @@ xkb_key_t =  #{const XKB_KEY_t}
 
 xkb_key_d :: KeySym
 xkb_key_d =  #{const XKB_KEY_d}
+
+xkb_key_Tab :: KeySym
+xkb_key_Tab =  #{const XKB_KEY_Tab}

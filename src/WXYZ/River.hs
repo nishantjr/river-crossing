@@ -8,7 +8,7 @@ module WXYZ.River (
     , Dimensions(..), Position(..), Rectangle(..)
 
     , Layout, LayoutClass(..)
-    , Message, SomeMessage(..), LayoutMessages(..), fromMessage
+    , Message, SomeMessage(..), LayoutMessages(..), fromMessage, sendMessage
 
     , Binding(..), Output(..), Seat(..), Window(..)
 
@@ -79,20 +79,26 @@ data Seat = Seat { handle :: RiverSeat }
 
 data Binding = Binding { action :: WXYZ () }
 
+-- | Virtual workspace indices
+type WorkspaceId = String
+
+
 -- Cache of River's Window Management state
 data WXYZState = WXYZState { windows  :: Map RiverWindow Window
-                             , outputs  :: Map RiverOutput Output
-                             , seats    :: Map RiverSeat   Seat
-                             , bindings :: Map RiverXKBBinding Binding
+                           , outputs  :: Map RiverOutput Output
+                           , seats    :: Map RiverSeat   Seat
+                           , bindings :: Map RiverXKBBinding Binding
 
-                             -- Seats registered since last manage block.
-                             -- These are needed so that we can set up bindings.
-                             -- Setting up bindings in non-idemopotent, so
-                             -- unlike in the case of window layouts, we can't
-                             -- just re-do everything from scratch and expect
-                             -- it to be ok.
-                             , newSeats :: [RiverSeat]
-                             }
+                           -- Seats registered since last manage block.
+                           -- These are needed so that we can set up bindings.
+                           -- Setting up bindings in non-idemopotent, so
+                           -- unlike in the case of window layouts, we can't
+                           -- just re-do everything from scratch and expect
+                           -- it to be ok.
+                           , newSeats :: [RiverSeat]
+
+                           , currLayout :: Layout Window
+                           }
 
 -- Immutable configuration
 data WXYZConfig l = WXYZConfig
@@ -144,9 +150,10 @@ manageAndRender (WMManageStart wm) = runMaybeT $
        config <- lift ask
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+
        (winrects, newLayout) <- lift $
-            maybe (emptyLayout config.layout rect)
-                  (doLayout config.layout rect)
+            maybe (emptyLayout st.currLayout rect)
+                  (doLayout st.currLayout rect)
                   (toStack $ M.elems st.windows)
        let dims = map mkProposeDim winrects
 
@@ -158,11 +165,12 @@ manageAndRender (WMManageStart wm) = runMaybeT $
                         ]
 
        case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
-         (Just lastWin, Just firstSeat) -> liftIO $ do putStrLn $ "------- " ++ (show (lastWin, firstSeat))
-                                                       putStrLn $ show (M.keys st.outputs, M.keys st.windows)
-                                                       _river_window_v1_focus_window firstSeat lastWin
+         (Just lastWin, Just firstSeat) -> liftIO $ _river_window_v1_focus_window firstSeat lastWin
          _ -> pure ()
 
+       case newLayout of
+           Just l' -> put st{currLayout=l'}
+           Nothing -> pure ()
        pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
@@ -180,16 +188,18 @@ manageAndRender (WMManageStart wm) = runMaybeT $
 
 manageAndRender (WMRenderStart wm) = runMaybeT $
     do st <- get
-       config <- lift ask
-
        firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
        (winrects, newLayout) <- lift $
-            maybe (emptyLayout config.layout rect)
-                  (doLayout config.layout rect)
+            maybe (emptyLayout st.currLayout rect)
+                  (doLayout st.currLayout rect)
                   (toStack $ M.elems st.windows)
        let positions = map mkPositions winrects
+
+       case newLayout of
+           Just l' -> put st{currLayout=l'}
+           Nothing -> pure ()
        pure $ positions ++ [ (WMRenderFinish wm) ]
   where
     mkPositions (win, (Rectangle x y _w _h))
@@ -246,9 +256,6 @@ cacheRiverState _ = pure Nothing
 
 -- Layouts
 -- =======
-
--- | Virtual workspace indices
-type WorkspaceId = String
 
 ------------------------------------------------------------------------
 -- LayoutClass handling. See particular instances in Operations.hs
@@ -382,6 +389,19 @@ data LayoutMessages = Hide              -- ^ sent when a layout becomes non-visi
 
 instance Message LayoutMessages
 
+-- | Throw a message to the current 'LayoutClass' possibly modifying how we
+-- layout the windows.
+-- XXX force a ManageDirty?
+sendMessage :: Message a => a -> WXYZ ()
+sendMessage a = do
+    st <- get
+    layout' <- handleMessage st.currLayout (SomeMessage a)
+    case layout' of
+        Just l' -> (put st{currLayout=l'}) *>
+                   (liftIO $ putStrLn (description l'))
+        Nothing -> pure ()
+    pure ()
+
 -- Main Loop
 -- =========
 
@@ -401,7 +421,13 @@ wxyz config
          let config' = config{ layout=Layout config.layout }
          void $ runWXYZ
             config'
-            (WXYZState M.empty M.empty M.empty M.empty [])
+            (WXYZState{ windows=M.empty
+                      , outputs=M.empty
+                      , seats=M.empty
+                      , bindings=M.empty
+                      , newSeats=[]
+                      , currLayout=config'.layout
+                      })
             (onStartup config >> eventLoop display)
   where
     eventLoop :: WlDisplay -> WXYZ ()
