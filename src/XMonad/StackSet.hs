@@ -13,18 +13,6 @@
 --
 
 module XMonad.StackSet (
-        -- * Introduction
-        -- $intro
-
-        -- ** The Zipper
-        -- $zipper
-
-        -- ** Xinerama support
-        -- $xinerama
-
-        -- ** Master and Focus
-        -- $focus
-
         StackSet(..), Workspace(..), Screen(..), Stack(..), RationalRect(..),
         -- *  Construction
         -- $construction

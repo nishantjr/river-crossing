@@ -26,14 +26,12 @@
 -----------------------------------------------------------------------------
 
 module XMonad.Core (
-    WXYZ, WindowSet, WindowSpace, WorkspaceId,
+    WXYZ, WindowSet, WindowSpace,
     ScreenId(..), ScreenDetail(..),
     LayoutClass(..), Layout(..), Rectangle(..),
     readsLayout, Typeable, Message,
     SomeMessage(..), fromMessage, LayoutMessages(..),
-    StateExtension(..), ExtensionClass(..), ConfExtension(..),
-    runWXYZ, catchWXYZ, userCode, userCodeDef, io, catchIO, installSignalHandlers, uninstallSignalHandlers,
-    spawn, spawnPID, xfork, xmessage, trace, whenJust, whenWXYZ, ifM,
+    runWXYZ, io,
   ) where
 
 import WXYZ.Protocol (RiverWindow)
@@ -42,23 +40,9 @@ import WXYZ.River (WXYZ, runWXYZ)
 import XMonad.StackSet hiding (modify)
 
 import Prelude
-import Control.Exception (fromException, try, throw, finally, SomeException(..))
-import qualified Control.Exception as E
-import Control.Monad.Fix (fix)
 import Control.Monad.State
-import Control.Monad.Reader
-import Control.Monad (void, when)
 import Data.Int (Int32)
-import Data.Word (Word32)
-import System.Environment (lookupEnv)
-import System.IO
-import System.Posix.Process (executeFile, forkProcess, getAnyProcessStatus, createSession)
-import System.Posix.Signals
-import System.Posix.IO
-import System.Posix.Types (ProcessID)
-import System.Exit
 import Data.Typeable
-import Data.Maybe (isJust,fromMaybe)
 
 -- | Per Graphics.X11.Xlib.Types.
 type Position      = Int32
@@ -87,30 +71,6 @@ newtype ScreenId    = S Int deriving (Eq,Ord,Show,Read,Enum,Num,Integral,Real)
 -- | The 'Rectangle' with screen dimensions
 newtype ScreenDetail = SD { screenRect :: Rectangle }
     deriving (Eq,Show, Read)
-
-------------------------------------------------------------------------
-
--- | Run in the 'WXYZ' monad, and in case of exception, and catch it and log it
--- to stderr, and run the error case.
-catchWXYZ :: WXYZ a -> WXYZ a -> WXYZ a
-catchWXYZ job errcase = do
-    st <- get
-    c <- ask
-    (a, s') <- io $ runWXYZ c st job `E.catch` \e -> case fromException e of
-                        Just (_ :: ExitCode) -> throw e
-                        _ -> do hPrint stderr e; runWXYZ c st errcase
-    put s'
-    return a
-
--- | Execute the argument, catching all exceptions.  Either this function or
--- 'catchWXYZ' should be used at all callsites of user customized code.
-userCode :: WXYZ a -> WXYZ (Maybe a)
-userCode a = catchWXYZ (Just <$> a) (return Nothing)
-
--- | Same as userCode but with a default argument to return instead of using
--- Maybe, provided for convenience.
-userCodeDef :: a -> WXYZ a -> WXYZ a
-userCodeDef defValue a = fromMaybe defValue <$> userCode a
 
 ------------------------------------------------------------------------
 -- LayoutClass handling. See particular instances in Operations.hs
@@ -250,117 +210,8 @@ data LayoutMessages = Hide              -- ^ sent when a layout becomes non-visi
 instance Message LayoutMessages
 
 -- ---------------------------------------------------------------------
--- Extensible state/config
---
-
--- | Every module must make the data it wants to store
--- an instance of this class.
---
--- Minimal complete definition: initialValue
-class Typeable a => ExtensionClass a where
-    {-# MINIMAL initialValue #-}
-    -- | Defines an initial value for the state extension
-    initialValue :: a
-    -- | Specifies whether the state extension should be
-    -- persistent. Setting this method to 'PersistentExtension'
-    -- will make the stored data survive restarts, but
-    -- requires a to be an instance of Read and Show.
-    --
-    -- It defaults to 'StateExtension', i.e. no persistence.
-    extensionType :: a -> StateExtension
-    extensionType = StateExtension
-
--- | Existential type to store a state extension.
-data StateExtension =
-    forall a. ExtensionClass a => StateExtension a
-    -- ^ Non-persistent state extension
-  | forall a. (Read a, Show a, ExtensionClass a) => PersistentExtension a
-    -- ^ Persistent extension
-
--- | Existential type to store a config extension.
-data ConfExtension = forall a. Typeable a => ConfExtension a
-
--- ---------------------------------------------------------------------
 -- General utilities
-
--- | If-then-else lifted to a 'Monad'.
-ifM :: Monad m => m Bool -> m a -> m a -> m a
-ifM mb t f = mb >>= \b -> if b then t else f
 
 -- | Lift an 'IO' action into the 'WXYZ' monad
 io :: MonadIO m => IO a -> m a
 io = liftIO
-
--- | Lift an 'IO' action into the 'WXYZ' monad.  If the action results in an 'IO'
--- exception, log the exception to stderr and continue normal execution.
-catchIO :: MonadIO m => IO () -> m ()
-catchIO f = io (f `E.catch` \(SomeException e) -> hPrint stderr e >> hFlush stderr)
-
--- | spawn. Launch an external application. Specifically, it double-forks and
--- runs the 'String' you pass as a command to \/bin\/sh.
---
--- Note this function assumes your locale uses utf8.
-spawn :: MonadIO m => String -> m ()
-spawn x = void $ spawnPID x
-
--- | Like 'spawn', but returns the 'ProcessID' of the launched application
-spawnPID :: MonadIO m => String -> m ProcessID
-spawnPID x = xfork $ executeFile "/bin/sh" False ["-c", x] Nothing
-
--- | A replacement for 'forkProcess' which resets default signal handlers.
-xfork :: MonadIO m => IO () -> m ProcessID
-xfork x = io . forkProcess . finally nullStdin $ do
-                uninstallSignalHandlers
-                _ <- createSession
-                x
- where
-    nullStdin = do
-#if MIN_VERSION_unix(2,8,0)
-        fd <- openFd "/dev/null" ReadOnly defaultFileFlags
-#else
-        fd <- openFd "/dev/null" ReadOnly Nothing defaultFileFlags
-#endif
-        _ <- dupTo fd stdInput
-        closeFd fd
-
--- | Use @xmessage@ to show information to the user.
-xmessage :: MonadIO m => String -> m ()
-xmessage msg = void . xfork $ do
-    xmessageBin <- fromMaybe "xmessage" <$> liftIO (lookupEnv "XMONAD_XMESSAGE")
-    executeFile xmessageBin True
-        [ "-default", "okay"
-        , "-xrm", "*international:true"
-        , "-xrm", "*fontSet:-*-fixed-medium-r-normal-*-18-*-*-*-*-*-*-*,-*-fixed-*-*-*-*-18-*-*-*-*-*-*-*,-*-*-*-*-*-*-18-*-*-*-*-*-*-*"
-        , msg
-        ] Nothing
-
--- | Conditionally run an action, using a @Maybe a@ to decide.
-whenJust :: Monad m => Maybe a -> (a -> m ()) -> m ()
-whenJust mg f = maybe (return ()) f mg
-
--- | Conditionally run an action, using a 'WXYZ' event to decide
-whenWXYZ :: WXYZ Bool -> WXYZ () -> WXYZ ()
-whenWXYZ a f = a >>= \b -> when b f
-
--- | A 'trace' for the 'WXYZ' monad. Logs a string to stderr. The result may
--- be found in your .xsession-errors file
-trace :: MonadIO m => String -> m ()
-trace = io . hPutStrLn stderr
-
--- | Ignore SIGPIPE to avoid termination when a pipe is full, and SIGCHLD to
--- avoid zombie processes, and clean up any extant zombie processes.
-installSignalHandlers :: MonadIO m => m ()
-installSignalHandlers = io $ do
-    _ <- installHandler openEndedPipe Ignore Nothing
-    _ <- installHandler sigCHLD Ignore Nothing
-    _ <- (try :: IO a -> IO (Either SomeException a))
-      $ fix $ \more -> do
-        x <- getAnyProcessStatus False False
-        when (isJust x) more
-    return ()
-
-uninstallSignalHandlers :: MonadIO m => m ()
-uninstallSignalHandlers = io $ do
-    _ <- installHandler openEndedPipe Default Nothing
-    _ <- installHandler sigCHLD Default Nothing
-    return ()
