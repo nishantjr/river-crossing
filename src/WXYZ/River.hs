@@ -260,9 +260,6 @@ cacheRiverState _ = pure Nothing
 -- Layouts
 -- =======
 
-------------------------------------------------------------------------
--- LayoutClass handling. See particular instances in Operations.hs
-
 -- | An existential type that can hold any object that is in 'Read'
 --   and 'LayoutClass'.
 data Layout a = forall l. (LayoutClass l a) => Layout (l a)
@@ -277,31 +274,20 @@ data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 -- complete definition would look like if we did not provide any default
 -- implementations:
 --
--- * 'runLayout' || (('doLayout' || 'pureLayout') && 'emptyLayout')
+-- * (('doLayout' || 'pureLayout') && 'emptyLayout')
 --
 -- * 'handleMessage' || 'pureMessage'
 --
 -- * 'description'
 --
 -- Note that any code which /uses/ 'LayoutClass' methods should only
--- ever call 'runLayout', 'handleMessage', and 'description'!  In
--- other words, the only calls to 'doLayout', 'pureMessage', and other
+-- ever call 'doLayout', 'handleMessage', and 'description'!  In
+-- other words, the only calls to 'pureMessage', and other
 -- such methods should be from the default implementations of
--- 'runLayout', 'handleMessage', and so on.  This ensures that the
+-- 'doLayout', 'handleMessage', and so on.  This ensures that the
 -- proper methods will be used, regardless of the particular methods
 -- that any 'LayoutClass' instance chooses to define.
 class (Show (layout a), Typeable layout) => LayoutClass layout a where
-
-    -- | By default, 'runLayout' calls 'doLayout' if there are any
-    --   windows to be laid out, and 'emptyLayout' otherwise.  Most
-    --   instances of 'LayoutClass' probably do not need to implement
-    --   'runLayout'; it is only useful for layouts which wish to make
-    --   use of more of the 'Workspace' information (for example,
-    --   "XMonad.Layout.PerWorkspace").
-    runLayout :: Workspace WorkspaceId (layout a) a
-              -> Rectangle
-              -> WXYZ ([(a, Rectangle)], Maybe (layout a))
-    runLayout (Workspace _ l ms) r = maybe (emptyLayout l r) (doLayout l r) ms
 
     -- | Given a 'Rectangle' in which to place the windows, and a 'Stack'
     -- of windows, return a list of windows and their corresponding
@@ -357,7 +343,6 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     description      = show
 
 instance LayoutClass Layout RiverWindow where
-    runLayout (Workspace i (Layout l) ms) r = fmap (fmap Layout) `fmap` runLayout (Workspace i l ms) r
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
     emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
     handleMessage (Layout l) = fmap (fmap Layout) . handleMessage l
