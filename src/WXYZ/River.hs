@@ -26,7 +26,7 @@ import           XMonad.StackSet hiding (modify, layout)
 import           Control.Monad (void)
 import           Control.Monad.State
 import           Control.Monad.Extra (fromMaybeM)
-import           Control.Monad.Trans.Maybe (runMaybeT)
+import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
 import qualified Data.List as L
@@ -97,12 +97,12 @@ data WXYZState = WXYZState { windows  :: Map RiverWindow Window
                            -- it to be ok.
                            , newSeats :: [RiverSeat]
 
-                           , currLayout :: Layout Window
+                           , currLayout :: Layout RiverWindow
                            }
 
 -- Immutable configuration
 data WXYZConfig l = WXYZConfig
-        { layout       :: l Window
+        { layout       :: l RiverWindow
         , onStartup    :: WXYZ ()
         , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
         }
@@ -140,7 +140,7 @@ outputRect o =
 -- | Generate an XMonad Stack from the River's state.
 -- XXX Eventually, we should use the Seat information to get the currently
 -- focused windows.
-toStack :: [Window] -> Maybe (Stack Window)
+toStack :: [RiverWindow] -> Maybe (Stack RiverWindow)
 toStack (w:ws) = Just $ Stack w [] ws
 toStack []     = Nothing
 
@@ -154,7 +154,7 @@ manageAndRender (WMManageStart wm) = runMaybeT $
        (winrects, newLayout) <- lift $
             maybe (emptyLayout st.currLayout rect)
                   (doLayout st.currLayout rect)
-                  (toStack $ M.elems st.windows)
+                  (toStack $ M.keys st.windows)
        let dims = map mkProposeDim winrects
 
        xkb <- liftIO getRiverXKBBindings
@@ -174,7 +174,7 @@ manageAndRender (WMManageStart wm) = runMaybeT $
        pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
-        = (WindowProposeDimensions win.handle w h)
+        = (WindowProposeDimensions win w h)
     bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
     bindSeat xkb seat (modifier, sym, act) =
       do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
@@ -194,16 +194,19 @@ manageAndRender (WMRenderStart wm) = runMaybeT $
        (winrects, newLayout) <- lift $
             maybe (emptyLayout st.currLayout rect)
                   (doLayout st.currLayout rect)
-                  (toStack $ M.elems st.windows)
-       let positions = map mkPositions winrects
+                  (toStack $ M.keys st.windows)
+       positions <- mapM mkPositions winrects
 
        case newLayout of
            Just l' -> put st{currLayout=l'}
            Nothing -> pure ()
        pure $ positions ++ [ (WMRenderFinish wm) ]
   where
-    mkPositions (win, (Rectangle x y _w _h))
-        = (NodeSetPosition win.node x y)
+    mkPositions :: (RiverWindow, Rectangle) -> MaybeT WXYZ Request
+    mkPositions (winHandle, (Rectangle x y _w _h)) =
+        do st <- get
+           Just win <- lift $ pure $ M.lookup winHandle st.windows
+           pure (NodeSetPosition win.node x y)
 
 manageAndRender _ = pure Nothing
 
@@ -353,7 +356,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     description :: layout a -> String
     description      = show
 
-instance LayoutClass Layout Window where
+instance LayoutClass Layout RiverWindow where
     runLayout (Workspace i (Layout l) ms) r = fmap (fmap Layout) `fmap` runLayout (Workspace i l ms) r
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
     emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
@@ -406,7 +409,7 @@ sendMessage a = do
 -- =========
 
 -- | Entry point for the window manager.
-wxyz :: (LayoutClass l Window) => WXYZConfig l -> IO ()
+wxyz :: (LayoutClass l RiverWindow) => WXYZConfig l -> IO ()
 wxyz config
     = do Just display <- wlDisplayConnect -- TODO: This should print an
                                           -- error message.
