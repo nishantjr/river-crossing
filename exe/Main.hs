@@ -27,7 +27,7 @@ main = wxyz $ WXYZConfig {
         , ((mod_mod1, xkb_key_k),      \s -> focusPrev s)
 
         ]
-    myLayout = tiled -- ||| L.Mirror tiled ||| L.Full
+    myLayout = tiled ||| L.Mirror tiled ||| L.Full
       where
         tiled   = L.Tall nmaster delta ratio
         nmaster = 1      -- Default number of windows in the master pane
