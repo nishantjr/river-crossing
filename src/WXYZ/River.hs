@@ -164,14 +164,14 @@ manageAndRender (WMManageStart wm) = runMaybeT $
                             ((modifier,sym),act) <- M.toList config.keyBindings
                         ]
 
-       case (listToMaybe $ reverse $ M.keys st.windows, listToMaybe $ M.keys st.seats) of
-         (Just lastWin, Just firstSeat) -> liftIO $ _river_window_v1_focus_window firstSeat lastWin
-         _ -> pure ()
+       let focus = case listToMaybe $ zip (reverse $ M.keys st.windows) (M.keys st.seats) of
+                    Just (lastWin, firstSeat) -> [(WindowFocus firstSeat lastWin)]
+                    _ -> []
 
        case newLayout of
            Just l' -> put st{currLayout=l'}
            Nothing -> pure ()
-       pure $ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
+       pure $ focus ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)

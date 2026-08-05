@@ -148,6 +148,7 @@ data Request = WMManageFinish RiverWM
 
              | NodeSetPosition RiverNode Int32 Int32
 
+             | WindowFocus RiverSeat RiverWindow
              | WindowProposeDimensions RiverWindow Int32 Int32
 
              | XKBBindingEnable RiverXKBBinding
@@ -323,6 +324,7 @@ sendRequest _dpy request = case request of
     (NodeSetPosition node x y) ->  _river_node_v1_set_position node x y
 
     (WindowProposeDimensions window w h) ->  _river_window_v1_propose_dimensions window w h
+    (WindowFocus seat window) -> _river_window_v1_focus_window seat window
 
     (XKBBindingEnable binding) -> _river_xkb_binding_v1_enable binding
 
