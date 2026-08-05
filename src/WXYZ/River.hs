@@ -107,7 +107,7 @@ data WXYZConfig l = WXYZConfig
         , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
         }
 
-type WXYZ a = ReaderT (WXYZConfig Layout) (StateT WXYZState IO) a
+type WXYZ = ReaderT (WXYZConfig Layout) (StateT WXYZState IO)
 
 --- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
 --  state. Return the result, and final state
