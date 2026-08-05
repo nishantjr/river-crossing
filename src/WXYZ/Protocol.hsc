@@ -149,6 +149,9 @@ data Request = WMManageFinish RiverWM
              | NodeSetPosition RiverNode Int32 Int32
 
              | WindowFocus RiverSeat RiverWindow
+             | WindowShow RiverWindow
+             | WindowHide RiverWindow
+
              | WindowProposeDimensions RiverWindow Int32 Int32
 
              | XKBBindingEnable RiverXKBBinding
@@ -307,6 +310,11 @@ foreign import capi "river-window-management-v1-client.h river_node_v1_set_posit
     _river_node_v1_set_position :: RiverNode -> Int32 -> Int32 -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
     _river_window_v1_propose_dimensions:: RiverWindow -> Int32 -> Int32 -> IO ()
+foreign import capi "river-window-management-v1-client.h river_window_v1_show"
+    _river_window_v1_show :: RiverWindow -> IO ()
+foreign import capi "river-window-management-v1-client.h river_window_v1_hide"
+    _river_window_v1_hide :: RiverWindow -> IO ()
+
 foreign import capi "river-window-management-v1-client.h river_seat_v1_focus_window"
     _river_window_v1_focus_window :: RiverSeat -> RiverWindow -> IO ()
 
@@ -324,6 +332,8 @@ sendRequest _dpy request = case request of
     (NodeSetPosition node x y) ->  _river_node_v1_set_position node x y
 
     (WindowProposeDimensions window w h) ->  _river_window_v1_propose_dimensions window w h
+    (WindowShow window) ->  _river_window_v1_show window
+    (WindowHide window) ->  _river_window_v1_hide window
     (WindowFocus seat window) -> _river_window_v1_focus_window seat window
 
     (XKBBindingEnable binding) -> _river_xkb_binding_v1_enable binding
