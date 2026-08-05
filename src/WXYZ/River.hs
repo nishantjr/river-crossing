@@ -33,6 +33,7 @@ import           Control.Monad.Trans.Maybe (runMaybeT)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
 import qualified Data.List as L
+import           Data.List ((\\))
 import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Maybe (fromMaybe, listToMaybe)
@@ -160,6 +161,8 @@ manageAndRender (WMManageStart wm) = runMaybeT $
             maybe (emptyLayout st.currLayout rect)
                   (doLayout st.currLayout rect)
                   (toStack $ M.keys st.windows)
+       let shown = map WindowShow (map fst winrects)
+       let hidden = map WindowHide (M.keys st.windows \\ (map fst winrects))
        let dims = map mkProposeDim winrects
 
        xkb <- liftIO getRiverXKBBindings
@@ -168,15 +171,13 @@ manageAndRender (WMManageStart wm) = runMaybeT $
                             o <- st.newSeats,
                             ((modifier,sym),act) <- M.toList config.keyBindings
                         ]
-
        let focus = case listToMaybe $ zip (reverse $ M.keys st.windows) (M.keys st.seats) of
                     Just (lastWin, firstSeat) -> [(WindowFocus firstSeat lastWin)]
                     _ -> []
-
        case newLayout of
            Just l' -> put st{currLayout=l'}
            Nothing -> pure ()
-       pure $ focus ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
+       pure $ shown ++ hidden ++ focus ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)
