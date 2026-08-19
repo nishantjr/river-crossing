@@ -15,18 +15,21 @@ module WXYZ.River (
     , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
+    , focusWindow, focusNext, focusPrev
   ) where
 
 import           Prelude hiding (mod)
 
 import           WXYZ.Protocol
 import           WXYZ.XKB
-import           XMonad.StackSet hiding (modify, layout)
+import           XMonad.StackSet hiding (modify, layout, focusWindow)
 
+import           Control.Applicative ((<|>))
 import           Control.Monad (void)
 import           Control.Monad.State
-import           Control.Monad.Extra (fromMaybeM)
 import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
+import           Control.Monad.Extra (fromMaybeM, whenJust)
+import           Control.Monad.Trans.Maybe (runMaybeT)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
 import qualified Data.List as L
@@ -74,7 +77,9 @@ data Window = Window { handle :: RiverWindow
                      } deriving (Show)
 
 
-data Seat = Seat { handle :: RiverSeat }
+data Seat = Seat { handle :: RiverSeat
+                 , focused :: Maybe RiverWindow
+                 }
     deriving (Show)
 
 data Binding = Binding { action :: WXYZ () }
@@ -244,7 +249,7 @@ cacheRiverState (OutputDimensions output width height) = runMaybeT $
 
 cacheRiverState (WMSeat _wm seat) = runMaybeT $
     do st <- get
-       put $ st { seats = M.insert seat (Seat seat) (seats st)
+       put $ st { seats = M.insert seat (Seat seat Nothing) (seats st)
                 , newSeats = st.newSeats ++ [seat]
                 }
        pure []
@@ -449,4 +454,36 @@ wxyz config
 shell :: String -> WXYZ ()
 shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
                         pure ()
+
+
+-- | Set the focused window for a seat
+focusWindow :: RiverSeat -> RiverWindow -> WXYZ ()
+focusWindow s w = do st <- get
+                     put st{seats=M.adjust (\seat -> seat{focused=Just w}) s st.seats}
+                     liftIO $ _river_window_v1_focus_window s w
+
+-- | Focus the next window in the window list.
+-- Note that this uses the window managers internal list of windows.
+-- This is a fairly arbitrary ordering--it doesn't take into account outputs,
+-- and includes windows that are hidden etc.
+focusNext :: RiverSeat -> WXYZ ()
+focusNext s = do st <- get
+                 focusNextInList (M.keys st.windows) s
+
+-- | Focus the previous window in the window list.
+focusPrev :: RiverSeat -> WXYZ ()
+focusPrev s = do st <- get
+                 focusNextInList (reverse $ M.keys st.windows) s
+
+focusNextInList :: [RiverWindow] -> RiverSeat -> WXYZ ()
+focusNextInList ws s =
+    do st <- get
+       let mw = (M.lookup s st.seats >>= focused >>= (flip nextItem ws))
+                  <|> listToMaybe ws
+       whenJust mw $ \w -> focusWindow s w
+
+-- | Get the next item in a list, wrapping at the end
+nextItem :: RiverWindow -> [RiverWindow] -> Maybe RiverWindow
+nextItem _ [] = Nothing
+nextItem a lst@(x:xs) = lookup a (zip lst (xs ++ [x]))
 
