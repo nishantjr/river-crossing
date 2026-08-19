@@ -109,7 +109,7 @@ data WXYZState = WXYZState { windows  :: Map RiverWindow Window
 data WXYZConfig l = WXYZConfig
         { layout       :: l RiverWindow
         , onStartup    :: WXYZ ()
-        , keyBindings  :: M.Map (Modifier,KeySym) (WXYZ ())
+        , keyBindings  :: M.Map (Modifier,KeySym) (RiverSeat -> WXYZ ())
         }
 
 type WXYZ = ReaderT (WXYZConfig Layout) (StateT WXYZState IO)
@@ -170,21 +170,18 @@ manageAndRender (WMManageStart wm) = runMaybeT $
                             o <- st.newSeats,
                             ((modifier,sym),act) <- M.toList config.keyBindings
                         ]
-       let focus = case listToMaybe $ zip (reverse $ M.keys st.windows) (M.keys st.seats) of
-                    Just (lastWin, firstSeat) -> [(WindowFocus firstSeat lastWin)]
-                    _ -> []
        case newLayout of
            Just l' -> put st{currLayout=l'}
            Nothing -> pure ()
-       pure $ shown ++ hidden ++ focus ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
+       pure $ shown ++ hidden ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)
-    bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, WXYZ ()) -> WXYZ [Request]
+    bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, RiverSeat -> WXYZ ()) -> WXYZ [Request]
     bindSeat xkb seat (modifier, sym, act) =
       do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
          st <- get
-         put st { bindings = M.insert binding (Binding act) st.bindings
+         put st { bindings = M.insert binding (Binding $ act seat) st.bindings
                 , newSeats = L.delete seat st.newSeats
                 }
          liftIO $ riverXKBBindingAddEventListeners binding
