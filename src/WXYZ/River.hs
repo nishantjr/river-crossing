@@ -29,7 +29,6 @@ import           Control.Monad (void)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import           Control.Monad.Extra (fromMaybeM, whenJust)
-import           Control.Monad.Trans.Maybe (runMaybeT)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
 import qualified Data.List as L
