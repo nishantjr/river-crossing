@@ -2,7 +2,8 @@ module Main (main) where
 
 import qualified Data.Map as M
 
-import           WXYZ.River (sendMessage, shell, wxyz , WXYZConfig(..))
+import           WXYZ.River
+    (focusNext, focusPrev, sendMessage, shell, wxyz , WXYZConfig(..))
 import           WXYZ.Protocol (mod_mod1)
 import           WXYZ.XKB
 
@@ -18,9 +19,13 @@ main = wxyz $ WXYZConfig {
                  }
   where
     keyBindings = M.fromList
-        [ ((mod_mod1, xkb_key_t),      shell "alacritty")
-        , ((mod_mod1, xkb_key_d),      shell "bemenu-run")
-        , ((mod_mod1, xkb_key_Tab),    sendMessage L.NextLayout)
+        [ ((mod_mod1, xkb_key_t),      \_ -> shell "alacritty")
+        , ((mod_mod1, xkb_key_d),      \_ -> shell "bemenu-run")
+
+        , ((mod_mod1, xkb_key_Tab),    \_ -> sendMessage L.NextLayout)
+        , ((mod_mod1, xkb_key_j),      \s -> focusNext s)
+        , ((mod_mod1, xkb_key_k),      \s -> focusPrev s)
+
         ]
     myLayout = tiled -- ||| L.Mirror tiled ||| L.Full
       where
