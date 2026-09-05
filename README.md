@@ -8,13 +8,26 @@ in some of the community goodies, such as layouts.
 Immediate Goals
 ---------------
 
+Our first goal is to get something we can use as a daily driver:
+
 - [x] Support River's Window Management interface basic window management
 - [x] Support River's XKB Binding for keybindings (only keyPress right now)
-- [ ] Compatability for XMonad Layouts--atleast the ones that are mostly pure.
+- [x] Compatability for XMonad Layouts--atleast the ones that are mostly pure.
       We choose *not* to bring in workspaces because it seems like a fairly
       opinionated method of organizing windows.
-      For example, tags may be considered an alternative.
-- [ ] Implement XMonad Layout for Workspaces.
-- [ ] Clean up configuration interface.
+      For example, tags, multiple of which may be selected, are an alternative;
+      XMonad forces floating windows to be per-output rather than per-workspace...
+      They will instead be implemented as a Layout making them configurable.
+
+- [ ]  Mouse bindings
+- [ ]  Full screen
+
+- [ ]  Layout combinator for Workspaces
+- [ ]  Layout for Floating
+- [ ]  Port pure portions of BSP Layout
+
+- [ ] Clean up Stack, Layout: The Stack and StackSet no longer make sense
+      with the Wayland set: E.g. we can have multiple seats.
+
 - [ ] Automatically generate Wayland bindings.
 - [ ] Clean up abstractions
