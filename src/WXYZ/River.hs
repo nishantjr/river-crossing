@@ -25,7 +25,7 @@ import           WXYZ.XKB
 import           XMonad.StackSet hiding (modify, layout, focusWindow)
 
 import           Control.Applicative ((<|>))
-import           Control.Monad (void)
+import           Control.Monad (forM_, void, when)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
 import           Control.Monad.Extra (fromMaybeM, whenJust)
@@ -35,7 +35,7 @@ import qualified Data.List as L
 import           Data.List ((\\))
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Maybe (fromMaybe, listToMaybe)
+import           Data.Maybe (isNothing, fromMaybe, listToMaybe)
 import           Data.Typeable
 import           Data.Word
 import qualified System.Process as P
@@ -217,10 +217,18 @@ cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
        put $ st { windows = M.insert win (Window win node) (windows st) }
+       -- Focus newly created window. This could be obtusive--perhaps
+       -- we want to this to happen for particular types of windows, or
+       -- make it user configurable?
+       forM_ (M.elems st.seats) $ \s -> do
+          when (isNothing s.focused) (lift $ focusWindow s.handle win)
        pure []
 cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
        put $ st { windows = M.delete win (windows st) }
+       -- focus next window if closed window is currently focused.
+       forM_ (M.elems st.seats) $ \s -> do
+          when ((Just win) == s.focused) (lift $ focusNext s.handle)
        pure []
 
 cacheRiverState (WMOutput _wm output) = runMaybeT $
