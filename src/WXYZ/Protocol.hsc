@@ -20,6 +20,8 @@ module WXYZ.Protocol
     , riverXKBGetBinding
     , riverXKBBindingAddEventListeners
     , _river_window_v1_focus_window
+    , _river_window_v1_inform_fullscreen
+    , _river_window_v1_inform_not_fullscreen
     , sendRequest
     , Modifier
     , Request(..)
@@ -317,6 +319,12 @@ foreign import capi "river-window-management-v1-client.h river_window_v1_hide"
 
 foreign import capi "river-window-management-v1-client.h river_seat_v1_focus_window"
     _river_window_v1_focus_window :: RiverSeat -> RiverWindow -> IO ()
+
+foreign import capi "river-window-management-v1-client.h river_window_v1_inform_fullscreen"
+    _river_window_v1_inform_fullscreen :: RiverWindow -> IO ()
+
+foreign import capi "river-window-management-v1-client.h river_window_v1_inform_not_fullscreen"
+    _river_window_v1_inform_not_fullscreen :: RiverWindow -> IO ()
 
 foreign import capi "river-xkb-bindings-v1-client.h river_xkb_binding_v1_enable"
     _river_xkb_binding_v1_enable :: RiverXKBBinding -> IO ()

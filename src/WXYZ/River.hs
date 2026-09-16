@@ -15,7 +15,8 @@ module WXYZ.River (
     , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
-    , focusWindow, focusNext, focusPrev
+    , withFocused, focusWindow, focusNext, focusPrev
+    , informFullscreen, informNotFullscreen, toggleInformFullscreen
   ) where
 
 import           Prelude hiding (mod)
@@ -28,7 +29,7 @@ import           Control.Applicative ((<|>))
 import           Control.Monad (forM_, void, when)
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe (MaybeT(..), runMaybeT)
-import           Control.Monad.Extra (fromMaybeM, whenJust)
+import           Control.Monad.Extra (fromMaybeM, whenJust, ifM)
 import           Control.Monad.Trans.Reader (ask, runReaderT, ReaderT)
 import           Data.Int (Int32)
 import qualified Data.List as L
@@ -72,8 +73,9 @@ data Output = Output { handle :: RiverOutput
                      , dimensions :: Maybe Dimensions
                      } deriving (Show)
 
-data Window = Window { handle :: RiverWindow
-                     , node   :: RiverNode
+data Window = Window { handle             :: RiverWindow
+                     , node               :: RiverNode
+                     , informedFullscreen :: Bool
                      } deriving (Show)
 
 
@@ -216,7 +218,7 @@ cacheRiverState :: Event -> WXYZ (Maybe [Request])
 cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
-       put $ st { windows = M.insert win (Window win node) (windows st) }
+       put $ st { windows = M.insert win (Window win node False) (windows st) }
        -- Focus newly created window. This could be obtusive--perhaps
        -- we want to this to happen for particular types of windows, or
        -- make it user configurable?
@@ -460,6 +462,8 @@ shell :: String -> WXYZ ()
 shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
                         pure ()
 
+-- focus
+-- -----
 
 -- | Set the focused window for a seat
 focusWindow :: RiverSeat -> RiverWindow -> WXYZ ()
@@ -481,14 +485,53 @@ focusPrev s = do st <- get
                  focusNextInList (reverse $ M.keys st.windows) s
 
 focusNextInList :: [RiverWindow] -> RiverSeat -> WXYZ ()
-focusNextInList ws s =
-    do st <- get
-       let mw = (M.lookup s st.seats >>= focused >>= (flip nextItem ws))
-                  <|> listToMaybe ws
-       whenJust mw $ \w -> focusWindow s w
+focusNextInList ws s = do
+    st <- get
+    let mw = (M.lookup s st.seats >>= focused >>= (flip nextItem ws))
+               <|> listToMaybe ws
+    whenJust mw $ \w -> focusWindow s w
+
+withFocused :: (RiverWindow -> WXYZ ()) -> RiverSeat -> WXYZ ()
+withFocused f s = do
+    st <- get
+    let mw = (M.lookup s st.seats >>= focused)
+    whenJust mw $ \w -> f w
+
+-- fullscreen
+-- ----------
+
+-- | Inform the client that it is fullscreen without actually making it
+-- fullscreen. This is useful with a user wants the application to adjust
+-- its UI to a more minimal version, hiding menus etc. e.g. VLC, Firefox.
+informFullscreen :: RiverWindow -> WXYZ ()
+informFullscreen wh = do
+    st <- get
+    put st{windows=M.adjust (\w -> w{informedFullscreen=True}) wh st.windows}
+    liftIO $ _river_window_v1_inform_fullscreen wh
+
+-- | Inform the client that it is not fullscreen.
+informNotFullscreen :: RiverWindow -> WXYZ ()
+informNotFullscreen wh = do
+    st <- get
+    put st{windows=M.adjust (\w -> w{informedFullscreen=False}) wh st.windows}
+    liftIO $ _river_window_v1_inform_not_fullscreen wh
+
+toggleInformFullscreen :: RiverWindow -> WXYZ ()
+toggleInformFullscreen w = void $ runMaybeT $
+    ifM (informedFullscreen <$> getWindow w)
+        (lift $ informNotFullscreen w)
+        (lift $ informFullscreen w)
+
+-- Utilities
+-- =========
 
 -- | Get the next item in a list, wrapping at the end
 nextItem :: RiverWindow -> [RiverWindow] -> Maybe RiverWindow
 nextItem _ [] = Nothing
 nextItem a lst@(x:xs) = lookup a (zip lst (xs ++ [x]))
+
+-- | Get window from a handle
+getWindow :: RiverWindow -> MaybeT WXYZ Window
+getWindow h = do st <- lift get
+                 MaybeT $ pure $ M.lookup h st.windows
 
