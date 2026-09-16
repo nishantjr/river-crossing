@@ -1,14 +1,17 @@
 module Main (main) where
 
 import qualified Data.Map as M
-
-import           WXYZ.River
-    (focusNext, focusPrev, sendMessage, shell, wxyz , WXYZConfig(..))
-import           WXYZ.Protocol (mod_mod1)
-import           WXYZ.XKB
-
 import qualified XMonad.Layout as L
-import           XMonad.Layout ((|||))
+
+import WXYZ.River
+    ( focusNext, focusPrev, withFocused
+    , toggleInformFullscreen, sendMessage, shell
+    , wxyz , WXYZConfig(..)
+    )
+import WXYZ.Protocol (mod_mod1)
+import WXYZ.XKB
+
+import XMonad.Layout ((|||))
 
 main :: IO ()
 main = wxyz $ WXYZConfig {
@@ -26,6 +29,7 @@ main = wxyz $ WXYZConfig {
         , ((mod_mod1, xkb_key_j),      \s -> focusNext s)
         , ((mod_mod1, xkb_key_k),      \s -> focusPrev s)
 
+        , ((mod_mod1, xkb_key_f),      withFocused toggleInformFullscreen)
         ]
     myLayout = tiled ||| L.Mirror tiled ||| L.Full
       where
