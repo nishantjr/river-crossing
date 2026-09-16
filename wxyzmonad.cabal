@@ -14,11 +14,18 @@ extra-doc-files:    CHANGELOG.md
 -- extra-source-files:
 
 
+-- We disable the ambiguous-fields warning since there's no real alternative,
+-- untile OverloadedRecordUpdate is stable.
+-- See: https://discourse.haskell.org/t/what-are-you-supposed-to-do-about-wambiguous-fields/9545/13
 common warnings
-    ghc-options: -Wall
+    ghc-options: -Wall -Wno-ambiguous-fields
 
 common language
-    default-language: GHC2021
+    default-language: GHC2024
+    default-extensions:
+        OverloadedRecordDot,
+        DuplicateRecordFields,
+        NoFieldSelectors
 
 library
     import:           language, warnings

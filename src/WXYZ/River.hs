@@ -23,7 +23,7 @@ import           Prelude hiding (mod)
 
 import           WXYZ.Protocol
 import           WXYZ.XKB
-import           XMonad.StackSet hiding (modify, layout, focusWindow)
+import           XMonad.StackSet hiding (modify, focusWindow)
 
 import           Control.Applicative ((<|>))
 import           Control.Monad (forM_, void, when)
@@ -128,7 +128,7 @@ runWXYZ c st act = runStateT (runReaderT act c) st
 handleBinding :: Event -> WXYZ (Maybe [Request])
 handleBinding (XKBBindingPressed binding) = runMaybeT $
     do st <- get
-       lift $ fromMaybe (unknownBinding binding) $ fmap action $ M.lookup binding (st.bindings)
+       lift $ fromMaybe (unknownBinding binding) $ fmap (.action) $ M.lookup binding st.bindings
        pure []
   where
     unknownBinding b = do
@@ -155,7 +155,7 @@ manageAndRender :: Event -> WXYZ (Maybe [Request])
 manageAndRender (WMManageStart wm) = runMaybeT $
     do st <- get
        config <- lift ask
-       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
        (winrects, newLayout) <- lift $
@@ -192,7 +192,7 @@ manageAndRender (WMManageStart wm) = runMaybeT $
 
 manageAndRender (WMRenderStart wm) = runMaybeT $
     do st <- get
-       firstOutput:_ <- (M.elems . outputs) <$> get -- Maybe Monad fails if no output available.
+       firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
        (winrects, newLayout) <- lift $
@@ -218,7 +218,7 @@ cacheRiverState :: Event -> WXYZ (Maybe [Request])
 cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
-       put $ st { windows = M.insert win (Window win node False) (windows st) }
+       put $ st { windows = M.insert win (Window win node False) st.windows }
        -- Focus newly created window. This could be obtusive--perhaps
        -- we want to this to happen for particular types of windows, or
        -- make it user configurable?
@@ -227,7 +227,7 @@ cacheRiverState (WMWindow _wm win) = runMaybeT $
        pure []
 cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
-       put $ st { windows = M.delete win (windows st) }
+       put $ st { windows = M.delete win st.windows }
        -- focus next window if closed window is currently focused.
        forM_ (M.elems st.seats) $ \s -> do
           when ((Just win) == s.focused) (lift $ focusNext s.handle)
@@ -239,30 +239,30 @@ cacheRiverState (WMOutput _wm output) = runMaybeT $
        pure [ ]
 cacheRiverState (OutputRemoved output) = runMaybeT $
     do st <- get
-       put $ st { outputs = M.delete output (outputs st) }
+       put $ st { outputs = M.delete output st.outputs }
        pure []
 cacheRiverState (OutputWlOutput output wl) = runMaybeT $
     do st <- get
-       put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output (outputs st) }
+       put $ st { outputs = M.adjust (\o -> o { wlOutput = Just wl}) output st.outputs }
        pure []
 cacheRiverState (OutputPosition output x y) = runMaybeT $
     do st <- get
-       put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output (outputs st) }
+       put $ st { outputs = M.adjust (\o -> o { position = Just $ Position x y}) output st.outputs }
        pure []
 cacheRiverState (OutputDimensions output width height) = runMaybeT $
     do st <- get
-       put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output (outputs st) }
+       put $ st { outputs = M.adjust (\o -> o { dimensions = Just $ Dimensions width height}) output st.outputs }
        pure []
 
 cacheRiverState (WMSeat _wm seat) = runMaybeT $
     do st <- get
-       put $ st { seats = M.insert seat (Seat seat Nothing) (seats st)
+       put $ st { seats = M.insert seat (Seat seat Nothing) st.seats
                 , newSeats = st.newSeats ++ [seat]
                 }
        pure []
 cacheRiverState (SeatRemoved seat) = runMaybeT $
     do st <- get
-       put $ st { seats = M.delete seat (seats st) }
+       put $ st { seats = M.delete seat st.seats }
        pure []
 
 cacheRiverState _ = pure Nothing
@@ -323,7 +323,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- don't need access to the 'WXYZ' monad to determine how to lay out
     -- the windows, and we don't need to modify the layout itself.
     pureLayout  :: layout a -> Rectangle -> Stack a -> [(a, Rectangle)]
-    pureLayout _ r s = [(focus s, r)]
+    pureLayout _ r s = [(s.focus, r)]
 
     -- | 'emptyLayout' is called when there are no windows.
     emptyLayout :: layout a -> Rectangle -> WXYZ ([(a, Rectangle)], Maybe (layout a))
@@ -418,7 +418,7 @@ wxyz config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
-         let config' = config{ layout=Layout config.layout }
+         let config' = config{layout=(Layout config.layout)} :: WXYZConfig Layout
          void $ runWXYZ
             config'
             (WXYZState{ windows=M.empty
@@ -428,7 +428,7 @@ wxyz config
                       , newSeats=[]
                       , currLayout=config'.layout
                       })
-            (onStartup config >> eventLoop display)
+            (config.onStartup >> eventLoop display)
   where
     eventLoop :: WlDisplay -> WXYZ ()
     eventLoop display =
@@ -487,14 +487,14 @@ focusPrev s = do st <- get
 focusNextInList :: [RiverWindow] -> RiverSeat -> WXYZ ()
 focusNextInList ws s = do
     st <- get
-    let mw = (M.lookup s st.seats >>= focused >>= (flip nextItem ws))
+    let mw = (M.lookup s st.seats >>= (.focused) >>= (flip nextItem ws))
                <|> listToMaybe ws
     whenJust mw $ \w -> focusWindow s w
 
 withFocused :: (RiverWindow -> WXYZ ()) -> RiverSeat -> WXYZ ()
 withFocused f s = do
     st <- get
-    let mw = (M.lookup s st.seats >>= focused)
+    let mw = (M.lookup s st.seats >>= (.focused))
     whenJust mw $ \w -> f w
 
 -- fullscreen
@@ -518,7 +518,7 @@ informNotFullscreen wh = do
 
 toggleInformFullscreen :: RiverWindow -> WXYZ ()
 toggleInformFullscreen w = void $ runMaybeT $
-    ifM (informedFullscreen <$> getWindow w)
+    ifM ((.informedFullscreen) <$> getWindow w)
         (lift $ informNotFullscreen w)
         (lift $ informFullscreen w)
 
