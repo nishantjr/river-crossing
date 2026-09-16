@@ -526,7 +526,7 @@ toggleInformFullscreen w = void $ runMaybeT $
 -- =========
 
 -- | Get the next item in a list, wrapping at the end
-nextItem :: RiverWindow -> [RiverWindow] -> Maybe RiverWindow
+nextItem :: Eq a => a -> [a] -> Maybe a
 nextItem _ [] = Nothing
 nextItem a lst@(x:xs) = lookup a (zip lst (xs ++ [x]))
 
