@@ -67,20 +67,20 @@ data Rectangle = Rectangle {
 -- Managing State
 -- ==============
 
-data Output = Output { handle :: RiverOutput
+data Output = Output { handle :: OutputHandle
                      , wlOutput :: Maybe Word32
                      , position :: Maybe Position
                      , dimensions :: Maybe Dimensions
                      } deriving (Show)
 
-data Window = Window { handle             :: RiverWindow
+data Window = Window { handle             :: WindowHandle
                      , node               :: RiverNode
                      , informedFullscreen :: Bool
                      } deriving (Show)
 
 
-data Seat = Seat { handle :: RiverSeat
-                 , focused :: Maybe RiverWindow
+data Seat = Seat { handle :: SeatHandle
+                 , focused :: Maybe WindowHandle
                  }
     deriving (Show)
 
@@ -91,9 +91,9 @@ type WorkspaceId = String
 
 
 -- Cache of River's Window Management state
-data WXYZState = WXYZState { windows  :: Map RiverWindow Window
-                           , outputs  :: Map RiverOutput Output
-                           , seats    :: Map RiverSeat   Seat
+data WXYZState = WXYZState { windows  :: Map WindowHandle Window
+                           , outputs  :: Map OutputHandle Output
+                           , seats    :: Map SeatHandle   Seat
                            , bindings :: Map RiverXKBBinding Binding
 
                            -- Seats registered since last manage block.
@@ -102,16 +102,16 @@ data WXYZState = WXYZState { windows  :: Map RiverWindow Window
                            -- unlike in the case of window layouts, we can't
                            -- just re-do everything from scratch and expect
                            -- it to be ok.
-                           , newSeats :: [RiverSeat]
+                           , newSeats :: [SeatHandle]
 
-                           , currLayout :: Layout RiverWindow
+                           , currLayout :: Layout WindowHandle
                            }
 
 -- Immutable configuration
 data WXYZConfig l = WXYZConfig
-        { layout       :: l RiverWindow
+        { layout       :: l WindowHandle
         , onStartup    :: WXYZ ()
-        , keyBindings  :: M.Map (Modifier,KeySym) (RiverSeat -> WXYZ ())
+        , keyBindings  :: M.Map (Modifier,KeySym) (SeatHandle -> WXYZ ())
         }
 
 type WXYZ = ReaderT (WXYZConfig Layout) (StateT WXYZState IO)
@@ -147,7 +147,7 @@ outputRect o =
 -- | Generate an XMonad Stack from the River's state.
 -- XXX Eventually, we should use the Seat information to get the currently
 -- focused windows.
-toStack :: [RiverWindow] -> Maybe (Stack RiverWindow)
+toStack :: [WindowHandle] -> Maybe (Stack WindowHandle)
 toStack (w:ws) = Just $ Stack w [] ws
 toStack []     = Nothing
 
@@ -179,7 +179,7 @@ manageAndRender (WMManageStart wm) = runMaybeT $
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)
-    bindSeat :: RiverXKBBindings -> RiverSeat -> (Modifier, KeySym, RiverSeat -> WXYZ ()) -> WXYZ [Request]
+    bindSeat :: RiverXKBBindings -> SeatHandle -> (Modifier, KeySym, SeatHandle -> WXYZ ()) -> WXYZ [Request]
     bindSeat xkb seat (modifier, sym, act) =
       do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
          st <- get
@@ -206,7 +206,7 @@ manageAndRender (WMRenderStart wm) = runMaybeT $
            Nothing -> pure ()
        pure $ positions ++ [ (WMRenderFinish wm) ]
   where
-    mkPositions :: (RiverWindow, Rectangle) -> MaybeT WXYZ Request
+    mkPositions :: (WindowHandle, Rectangle) -> MaybeT WXYZ Request
     mkPositions (winHandle, (Rectangle x y _w _h)) =
         do st <- get
            Just win <- lift $ pure $ M.lookup winHandle st.windows
@@ -354,7 +354,7 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     description :: layout a -> String
     description      = show
 
-instance LayoutClass Layout RiverWindow where
+instance LayoutClass Layout WindowHandle where
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
     emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
     handleMessage (Layout l) = fmap (fmap Layout) . handleMessage l
@@ -406,7 +406,7 @@ sendMessage a = do
 -- =========
 
 -- | Entry point for the window manager.
-wxyz :: (LayoutClass l RiverWindow) => WXYZConfig l -> IO ()
+wxyz :: (LayoutClass l WindowHandle) => WXYZConfig l -> IO ()
 wxyz config
     = do Just display <- wlDisplayConnect -- TODO: This should print an
                                           -- error message.
@@ -466,7 +466,7 @@ shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
 -- -----
 
 -- | Set the focused window for a seat
-focusWindow :: RiverSeat -> RiverWindow -> WXYZ ()
+focusWindow :: SeatHandle -> WindowHandle -> WXYZ ()
 focusWindow s w = do st <- get
                      put st{seats=M.adjust (\seat -> seat{focused=Just w}) s st.seats}
                      liftIO $ _river_window_v1_focus_window s w
@@ -475,23 +475,23 @@ focusWindow s w = do st <- get
 -- Note that this uses the window managers internal list of windows.
 -- This is a fairly arbitrary ordering--it doesn't take into account outputs,
 -- and includes windows that are hidden etc.
-focusNext :: RiverSeat -> WXYZ ()
+focusNext :: SeatHandle -> WXYZ ()
 focusNext s = do st <- get
                  focusNextInList (M.keys st.windows) s
 
 -- | Focus the previous window in the window list.
-focusPrev :: RiverSeat -> WXYZ ()
+focusPrev :: SeatHandle -> WXYZ ()
 focusPrev s = do st <- get
                  focusNextInList (reverse $ M.keys st.windows) s
 
-focusNextInList :: [RiverWindow] -> RiverSeat -> WXYZ ()
+focusNextInList :: [WindowHandle] -> SeatHandle -> WXYZ ()
 focusNextInList ws s = do
     st <- get
     let mw = (M.lookup s st.seats >>= (.focused) >>= (flip nextItem ws))
                <|> listToMaybe ws
     whenJust mw $ \w -> focusWindow s w
 
-withFocused :: (RiverWindow -> WXYZ ()) -> RiverSeat -> WXYZ ()
+withFocused :: (WindowHandle -> WXYZ ()) -> SeatHandle -> WXYZ ()
 withFocused f s = do
     st <- get
     let mw = (M.lookup s st.seats >>= (.focused))
@@ -503,20 +503,20 @@ withFocused f s = do
 -- | Inform the client that it is fullscreen without actually making it
 -- fullscreen. This is useful with a user wants the application to adjust
 -- its UI to a more minimal version, hiding menus etc. e.g. VLC, Firefox.
-informFullscreen :: RiverWindow -> WXYZ ()
+informFullscreen :: WindowHandle -> WXYZ ()
 informFullscreen wh = do
     st <- get
     put st{windows=M.adjust (\w -> w{informedFullscreen=True}) wh st.windows}
     liftIO $ _river_window_v1_inform_fullscreen wh
 
 -- | Inform the client that it is not fullscreen.
-informNotFullscreen :: RiverWindow -> WXYZ ()
+informNotFullscreen :: WindowHandle -> WXYZ ()
 informNotFullscreen wh = do
     st <- get
     put st{windows=M.adjust (\w -> w{informedFullscreen=False}) wh st.windows}
     liftIO $ _river_window_v1_inform_not_fullscreen wh
 
-toggleInformFullscreen :: RiverWindow -> WXYZ ()
+toggleInformFullscreen :: WindowHandle -> WXYZ ()
 toggleInformFullscreen w = void $ runMaybeT $
     ifM ((.informedFullscreen) <$> getWindow w)
         (lift $ informNotFullscreen w)
@@ -531,7 +531,7 @@ nextItem _ [] = Nothing
 nextItem a lst@(x:xs) = lookup a (zip lst (xs ++ [x]))
 
 -- | Get window from a handle
-getWindow :: RiverWindow -> MaybeT WXYZ Window
+getWindow :: WindowHandle -> MaybeT WXYZ Window
 getWindow h = do st <- lift get
                  MaybeT $ pure $ M.lookup h st.windows
 
