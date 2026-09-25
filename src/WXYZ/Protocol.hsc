@@ -26,10 +26,10 @@ module WXYZ.Protocol
     , Modifier
     , Request(..)
     , RiverNode
-    , RiverOutput
-    , RiverSeat
+    , OutputHandle
+    , SeatHandle
     , RiverWM
-    , RiverWindow
+    , WindowHandle
     , RiverXKBBinding
     , RiverXKBBindings
     , WlDisplay
@@ -76,11 +76,11 @@ awaitRegistry dpy =
 foreign import capi "cbits/river.h await_registry"
     _await_registry :: WlDisplay -> IO CBool
 
-data CRiverWM;      type RiverWM     = Ptr CRiverWM     -- ^ river_window_manager_v1
-data CRiverWindow;  type RiverWindow = Ptr CRiverWindow -- ^ river_window_v1
-data CRiverNode;    type RiverNode   = Ptr CRiverNode   -- ^ river_node_v1
-data CRiverOutput;  type RiverOutput = Ptr CRiverOutput -- ^ river_output_v1
-data CRiverSeat;    type RiverSeat   = Ptr CRiverSeat   -- ^ river_seat_v1
+data CRiverWM;      type RiverWM      = Ptr CRiverWM      -- ^ river_window_manager_v1
+data CWindowHandle; type WindowHandle = Ptr CWindowHandle -- ^ river_window_v1
+data CRiverNode;    type RiverNode    = Ptr CRiverNode    -- ^ river_node_v1
+data COutputHandle; type OutputHandle = Ptr COutputHandle -- ^ river_output_v1
+data CSeatHandle;   type SeatHandle   = Ptr CSeatHandle   -- ^ river_seat_v1
 
 data CRiverXKBBindings; type RiverXKBBindings = Ptr CRiverXKBBindings   -- ^ river_xkb_bindings_v1
 data CRiverXKBBinding;  type RiverXKBBinding  = Ptr CRiverXKBBinding    -- ^ river_xkb_binding_v1
@@ -109,35 +109,35 @@ data Event = WMUnavailable                  RiverWM
            | WMRenderStart                  RiverWM
            | WMSessionLocked                RiverWM
            | WMSessionUnlocked              RiverWM
-           | WMWindow                       RiverWM RiverWindow
-           | WMOutput                       RiverWM RiverOutput
-           | WMSeat                         RiverWM RiverSeat
+           | WMWindow                       RiverWM WindowHandle
+           | WMOutput                       RiverWM OutputHandle
+           | WMSeat                         RiverWM SeatHandle
 
-           | WindowClosed                   RiverWindow
-           | WindowDimensionsHint           RiverWindow
-           | WindowDimensions               RiverWindow
-           | WindowAppId                    RiverWindow
-           | WindowTitle                    RiverWindow
-           | WindowParent                   RiverWindow
-           | WindowDecorationHint           RiverWindow
-           | WindowPointerMoveRequested     RiverWindow
-           | WindowPointerResizeRequested   RiverWindow
-           | WindowShowWindowMenuRequested  RiverWindow
-           | WindowMaximizeRequested        RiverWindow
-           | WindowUnmaximizeRequested      RiverWindow
-           | WindowFullscreenRequested      RiverWindow
-           | WindowExitFullscreenRequested  RiverWindow
-           | WindowMinimizeRequested        RiverWindow
-           | WindowUnreliablePid            RiverWindow
-           | WindowPresentationHint         RiverWindow
-           | WindowIdentifier               RiverWindow
+           | WindowClosed                   WindowHandle
+           | WindowDimensionsHint           WindowHandle
+           | WindowDimensions               WindowHandle
+           | WindowAppId                    WindowHandle
+           | WindowTitle                    WindowHandle
+           | WindowParent                   WindowHandle
+           | WindowDecorationHint           WindowHandle
+           | WindowPointerMoveRequested     WindowHandle
+           | WindowPointerResizeRequested   WindowHandle
+           | WindowShowWindowMenuRequested  WindowHandle
+           | WindowMaximizeRequested        WindowHandle
+           | WindowUnmaximizeRequested      WindowHandle
+           | WindowFullscreenRequested      WindowHandle
+           | WindowExitFullscreenRequested  WindowHandle
+           | WindowMinimizeRequested        WindowHandle
+           | WindowUnreliablePid            WindowHandle
+           | WindowPresentationHint         WindowHandle
+           | WindowIdentifier               WindowHandle
 
-           | OutputRemoved                  RiverOutput
-           | OutputWlOutput                 RiverOutput Word32
-           | OutputPosition                 RiverOutput Int32 Int32
-           | OutputDimensions               RiverOutput Int32 Int32
+           | OutputRemoved                  OutputHandle
+           | OutputWlOutput                 OutputHandle Word32
+           | OutputPosition                 OutputHandle Int32 Int32
+           | OutputDimensions               OutputHandle Int32 Int32
 
-           | SeatRemoved                    RiverSeat
+           | SeatRemoved                    SeatHandle
 
            | XKBBindingPressed              RiverXKBBinding
 
@@ -150,11 +150,11 @@ data Request = WMManageFinish RiverWM
 
              | NodeSetPosition RiverNode Int32 Int32
 
-             | WindowFocus RiverSeat RiverWindow
-             | WindowShow RiverWindow
-             | WindowHide RiverWindow
+             | WindowFocus SeatHandle WindowHandle
+             | WindowShow WindowHandle
+             | WindowHide WindowHandle
 
-             | WindowProposeDimensions RiverWindow Int32 Int32
+             | WindowProposeDimensions WindowHandle Int32 Int32
 
              | XKBBindingEnable RiverXKBBinding
     deriving Show
@@ -311,20 +311,20 @@ foreign import capi "river-window-management-v1-client.h river_window_manager_v1
 foreign import capi "river-window-management-v1-client.h river_node_v1_set_position"
     _river_node_v1_set_position :: RiverNode -> Int32 -> Int32 -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_propose_dimensions"
-    _river_window_v1_propose_dimensions:: RiverWindow -> Int32 -> Int32 -> IO ()
+    _river_window_v1_propose_dimensions:: WindowHandle -> Int32 -> Int32 -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_show"
-    _river_window_v1_show :: RiverWindow -> IO ()
+    _river_window_v1_show :: WindowHandle -> IO ()
 foreign import capi "river-window-management-v1-client.h river_window_v1_hide"
-    _river_window_v1_hide :: RiverWindow -> IO ()
+    _river_window_v1_hide :: WindowHandle -> IO ()
 
 foreign import capi "river-window-management-v1-client.h river_seat_v1_focus_window"
-    _river_window_v1_focus_window :: RiverSeat -> RiverWindow -> IO ()
+    _river_window_v1_focus_window :: SeatHandle -> WindowHandle -> IO ()
 
 foreign import capi "river-window-management-v1-client.h river_window_v1_inform_fullscreen"
-    _river_window_v1_inform_fullscreen :: RiverWindow -> IO ()
+    _river_window_v1_inform_fullscreen :: WindowHandle -> IO ()
 
 foreign import capi "river-window-management-v1-client.h river_window_v1_inform_not_fullscreen"
-    _river_window_v1_inform_not_fullscreen :: RiverWindow -> IO ()
+    _river_window_v1_inform_not_fullscreen :: WindowHandle -> IO ()
 
 foreign import capi "river-xkb-bindings-v1-client.h river_xkb_binding_v1_enable"
     _river_xkb_binding_v1_enable :: RiverXKBBinding -> IO ()
@@ -352,6 +352,6 @@ sendRequest _dpy request = case request of
 -- interface for this.
 
 foreign import capi "river-window-management-v1-client.h river_window_v1_get_node"
-    riverWindowGetNode :: RiverWindow -> RiverNode
+    riverWindowGetNode :: WindowHandle -> RiverNode
 foreign import capi "river-xkb-bindings-v1-client.h river_xkb_bindings_v1_get_xkb_binding"
-    riverXKBGetBinding :: RiverXKBBindings -> RiverSeat -> KeySym -> Modifier -> IO RiverXKBBinding
+    riverXKBGetBinding :: RiverXKBBindings -> SeatHandle -> KeySym -> Modifier -> IO RiverXKBBinding
