@@ -497,8 +497,8 @@ withFocused f s = do
     let mw = (M.lookup s st.seats >>= (.focused))
     whenJust mw $ \w -> f w
 
--- fullscreen
--- ----------
+-- Inform fullscreen
+-- -----------------
 
 -- | Inform the client that it is fullscreen without actually making it
 -- fullscreen. This is useful with a user wants the application to adjust
