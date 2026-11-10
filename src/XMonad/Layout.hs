@@ -32,7 +32,6 @@ import           WXYZ.River
     , Rectangle(..)
     , WXYZ
     )
-import qualified XMonad.StackSet as W
 
 import           Control.Arrow ((***), second)
 import           Control.Monad
@@ -65,12 +64,11 @@ data Tall a = Tall { tallNMaster :: !Int               -- ^ The default number o
 
 -- a nice pure layout, lots of properties for the layout, and its messages, in Properties.hs
 instance LayoutClass Tall a where
-    pureLayout (Tall nmaster _ frac) r s
+    pureLayout (Tall nmaster _ frac) r ws
         | frac == 0 = drop nmaster layout
         | frac == 1 = take nmaster layout
         | otherwise = layout
-      where ws = W.integrate s
-            rs = tile frac r nmaster (length ws)
+      where rs = tile frac r nmaster (length ws)
             layout = zip ws rs
 
     pureMessage (Tall nmaster delta frac) m =

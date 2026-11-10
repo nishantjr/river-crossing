@@ -23,7 +23,6 @@ import           Prelude hiding (mod)
 
 import           WXYZ.Protocol
 import           WXYZ.XKB
-import           XMonad.StackSet hiding (modify, focusWindow)
 
 import           Control.Applicative ((<|>))
 import           Control.Monad (forM_, void, when)
@@ -77,7 +76,6 @@ data Window = Window { handle             :: WindowHandle
                      , node               :: RiverNode
                      , informedFullscreen :: Bool
                      } deriving (Show)
-
 
 data Seat = Seat { handle :: SeatHandle
                  , focused :: Maybe WindowHandle
@@ -144,13 +142,6 @@ outputRect o =
        pos <- o.position
        pure (Rectangle pos.x pos.y dims.width dims.height)
 
--- | Generate an XMonad Stack from the River's state.
--- XXX Eventually, we should use the Seat information to get the currently
--- focused windows.
-toStack :: [WindowHandle] -> Maybe (Stack WindowHandle)
-toStack (w:ws) = Just $ Stack w [] ws
-toStack []     = Nothing
-
 manageAndRender :: Event -> WXYZ (Maybe [Request])
 manageAndRender (WMManageStart wm) = runMaybeT $
     do st <- get
@@ -158,10 +149,8 @@ manageAndRender (WMManageStart wm) = runMaybeT $
        firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
-       (winrects, newLayout) <- lift $
-            maybe (emptyLayout st.currLayout rect)
-                  (doLayout st.currLayout rect)
-                  (toStack $ M.keys st.windows)
+       (winrects, newLayout)
+           <- lift $ doLayout st.currLayout rect (M.keys st.windows)
        let shown = map WindowShow (map fst winrects)
        let hidden = map WindowHide (M.keys st.windows \\ (map fst winrects))
        let dims = map mkProposeDim winrects
@@ -195,10 +184,8 @@ manageAndRender (WMRenderStart wm) = runMaybeT $
        firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
        let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
 
-       (winrects, newLayout) <- lift $
-            maybe (emptyLayout st.currLayout rect)
-                  (doLayout st.currLayout rect)
-                  (toStack $ M.keys st.windows)
+       (winrects, newLayout)
+           <- lift $ doLayout st.currLayout rect (M.keys st.windows)
        positions <- mapM mkPositions winrects
 
        case newLayout of
@@ -299,12 +286,33 @@ data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 -- 'doLayout', 'handleMessage', and so on.  This ensures that the
 -- proper methods will be used, regardless of the particular methods
 -- that any 'LayoutClass' instance chooses to define.
+--
+-- This differs from XMonad's LayoutClass in two ways.
+-- First, it uses [a] instead of rather than Stack. XMonad's Stack
+-- encodes the focused window in a zipper structure to allow layouts to
+-- take into account the focused window. This makes the assumption
+-- that there is only a single focused window. This assumption does not
+-- hold on Wayland, where there may be multiple seats.
+-- There are ways we could work around this---e.g. by using the focus
+-- information from the first seat and ignoring the others, or by separating
+-- the concepts of 'master window' from the focused one. In either case,
+-- these workarounds may be implemented in the Layout itself (the focus
+-- information is accessible through the window manager Monad).
+--
+-- Second, it does not take into account workspaces or floating windows.
+-- Since these are opinionated, these are best handled through layout
+-- combinators.
+--
+-- If we are interested in bringing over XMonad layouts wholesale and
+-- unchanged, something that could work for the pure-er layouts, we
+-- can implement a compatiblity `XMonadLayout` combinator that allows
+-- using XMonad's interface.
 class (Show (layout a), Typeable layout) => LayoutClass layout a where
 
-    -- | Given a 'Rectangle' in which to place the windows, and a 'Stack'
-    -- of windows, return a list of windows and their corresponding
-    -- Rectangles.  If an element is not given a Rectangle by
-    -- 'doLayout', then it is not shown on screen.  The order of
+    -- | Given a 'Rectangle' in which to place the windows, and a list
+    -- of windows, return a list of windows with their corresponding
+    -- Rectangles. If an element is not given a Rectangle by
+    -- 'doLayout', then it is not shown on screen. The order of
     -- windows in this list should be the desired stacking order.
     --
     -- Also possibly return a modified layout (by returning @Just
@@ -315,19 +323,16 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- Layouts which do not need access to the 'WXYZ' monad ('IO', window
     -- manager state, or configuration) and do not keep track of their
     -- own state should implement 'pureLayout' instead of 'doLayout'.
-    doLayout    :: layout a -> Rectangle -> Stack a
+    doLayout    :: layout a -> Rectangle -> [a]
                 -> WXYZ ([(a, Rectangle)], Maybe (layout a))
-    doLayout l r s   = return (pureLayout l r s, Nothing)
+    doLayout l r ws = return (pureLayout l r ws, Nothing)
 
     -- | This is a pure version of 'doLayout', for cases where we
-    -- don't need access to the 'WXYZ' monad to determine how to lay out
+    -- don't need access to the 'WXYZ' monad to determine how to layout
     -- the windows, and we don't need to modify the layout itself.
-    pureLayout  :: layout a -> Rectangle -> Stack a -> [(a, Rectangle)]
-    pureLayout _ r s = [(s.focus, r)]
-
-    -- | 'emptyLayout' is called when there are no windows.
-    emptyLayout :: layout a -> Rectangle -> WXYZ ([(a, Rectangle)], Maybe (layout a))
-    emptyLayout _ _ = return ([], Nothing)
+    pureLayout  :: layout a -> Rectangle -> [a] -> [(a, Rectangle)]
+    pureLayout _ _ []    = []
+    pureLayout _ r (w:_) = [(w, r)]
 
     -- | 'handleMessage' performs message handling.  If
     -- 'handleMessage' returns @Nothing@, then the layout did not
@@ -356,7 +361,6 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
 
 instance LayoutClass Layout WindowHandle where
     doLayout (Layout l) r s  = fmap (fmap Layout) `fmap` doLayout l r s
-    emptyLayout (Layout l) r = fmap (fmap Layout) `fmap` emptyLayout l r
     handleMessage (Layout l) = fmap (fmap Layout) . handleMessage l
     description (Layout l)   = description l
 
