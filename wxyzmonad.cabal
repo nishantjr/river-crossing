@@ -33,7 +33,7 @@ library
     exposed-modules:  WXYZ.Protocol
                     , WXYZ.XKB
                     , WXYZ.River
-                    , XMonad.Layout
+                    , WXYZ.Layout.Core
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c
