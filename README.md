@@ -19,15 +19,15 @@ Our first goal is to get something we can use as a daily driver:
       XMonad forces floating windows to be per-output rather than per-workspace...
       They will instead be implemented as a Layout making them configurable.
 
-- [ ]  Mouse bindings
-- [ ]  Full screen
+- [ ] Remove dependency on focused window from Layouts (i.e. move from StackSet
+      to plain list of Windows.
+- [ ] Layout combinator for Full
+- [ ] Layout combinator for Workspaces
+- [ ] Layout combinator for Floating
+- [ ] Port pure portions of BSP Layout
+- [ ] Inform River re the stacking order
 
-- [ ]  Layout combinator for Workspaces
-- [ ]  Layout for Floating
-- [ ]  Port pure portions of BSP Layout
-
-- [ ] Clean up Stack, Layout: The Stack and StackSet no longer make sense
-      with the Wayland set: E.g. we can have multiple seats.
+- [ ] Mouse bindings
 
 - [ ] Automatically generate Wayland bindings.
 - [ ] Clean up abstractions
