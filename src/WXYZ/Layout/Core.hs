@@ -16,7 +16,7 @@
 --
 -----------------------------------------------------------------------------
 
-module XMonad.Layout (
+module WXYZ.Layout.Core (
     Full(..), Tall(..), Mirror(..),
     Resize(..), IncMasterN(..), Choose(..), (|||), CLR(..), ChangeLayout(..), JumpToLayout(..),
     mirrorRect, splitVertically,
