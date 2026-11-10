@@ -34,7 +34,6 @@ library
                     , WXYZ.XKB
                     , WXYZ.River
                     , XMonad.Layout
-                    , XMonad.StackSet
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c
