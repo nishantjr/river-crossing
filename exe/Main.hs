@@ -24,8 +24,8 @@ main = wxyz $ WXYZConfig {
         , ((mod_mod1, xkb_key_d),      const $ shell "bemenu-run")
 
         , ((mod_mod1, xkb_key_Tab),    const $ sendMessage Core.NextLayout)
-        , ((mod_mod1, xkb_key_j),      \s -> focusNext s)
-        , ((mod_mod1, xkb_key_k),      \s -> focusPrev s)
+        , ((mod_mod1, xkb_key_j),      focusNext)
+        , ((mod_mod1, xkb_key_k),      focusPrev)
 
         , ((mod_mod1, xkb_key_f),      withFocused toggleInformFullscreen)
         ]
