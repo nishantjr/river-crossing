@@ -1,6 +1,7 @@
 module Main (main) where
 
 import qualified Data.Map as M
+import Data.Bits ((.|.))
 
 import WXYZ.River
     ( focusNext, focusPrev, withFocused
@@ -8,7 +9,7 @@ import WXYZ.River
     , wxyz , WXYZConfig(..)
     )
 import WXYZ.Layout.Core as Core
-import WXYZ.Protocol (mod_mod1)
+import WXYZ.Protocol (mod_mod1, mod_shift)
 import WXYZ.XKB
 
 main :: IO ()
@@ -20,17 +21,19 @@ main = wxyz $ WXYZConfig {
                  }
   where
     keyBindings = M.fromList
-        [ ((a,  xkb_key_t),      const $ shell "alacritty")
-        , ((a,  xkb_key_d),      const $ shell "bemenu-run")
+        [ ((a,  xkb_key_t),     const $ shell "alacritty")
+        , ((a,  xkb_key_d),     const $ shell "bemenu-run")
 
-        , ((a,  xkb_key_Tab),    const $ sendMessage Core.NextLayout)
-        , ((a,  xkb_key_j),      focusNext)
-        , ((a,  xkb_key_k),      focusPrev)
+        , ((a,  xkb_key_j),     focusNext)
+        , ((a,  xkb_key_k),     focusPrev)
 
-        , ((a,  xkb_key_f),      withFocused toggleInformFullscreen)
+        , ((a,  xkb_key_f),     const $ sendMessage Core.NextLayout)
+        , ((as, xkb_key_f),     withFocused toggleInformFullscreen)
         ]
-    a = mod_mod1
-    myLayout = tiled ||| Core.Mirror tiled ||| Core.full
+    a     = mod_mod1
+    shift = mod_shift
+    as    = a .|. shift
+    myLayout = tiled ||| Core.full
       where
         tiled   = Core.Tall nmaster delta ratio
         nmaster = 1      -- Default number of windows in the master pane
