@@ -10,7 +10,10 @@ module WXYZ.River (
     , Layout, LayoutClass(..)
     , Message, SomeMessage(..), LayoutMessages(..), fromMessage, sendMessage
 
-    , Binding(..), Output(..), Seat(..), Window(..)
+    , Binding(..)
+    , Output(..), OutputHandle
+    , Seat(..), SeatHandle
+    , Window(..), WindowHandle
 
     , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
@@ -273,7 +276,7 @@ data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 -- complete definition would look like if we did not provide any default
 -- implementations:
 --
--- * (('doLayout' || 'pureLayout') && 'emptyLayout')
+-- * 'doLayout' || 'pureLayout'
 --
 -- * 'handleMessage' || 'pureMessage'
 --

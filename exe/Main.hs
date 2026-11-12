@@ -20,16 +20,17 @@ main = wxyz $ WXYZConfig {
                  }
   where
     keyBindings = M.fromList
-        [ ((mod_mod1, xkb_key_t),      const $ shell "alacritty")
-        , ((mod_mod1, xkb_key_d),      const $ shell "bemenu-run")
+        [ ((a,  xkb_key_t),      const $ shell "alacritty")
+        , ((a,  xkb_key_d),      const $ shell "bemenu-run")
 
-        , ((mod_mod1, xkb_key_Tab),    const $ sendMessage Core.NextLayout)
-        , ((mod_mod1, xkb_key_j),      focusNext)
-        , ((mod_mod1, xkb_key_k),      focusPrev)
+        , ((a,  xkb_key_Tab),    const $ sendMessage Core.NextLayout)
+        , ((a,  xkb_key_j),      focusNext)
+        , ((a,  xkb_key_k),      focusPrev)
 
-        , ((mod_mod1, xkb_key_f),      withFocused toggleInformFullscreen)
+        , ((a,  xkb_key_f),      withFocused toggleInformFullscreen)
         ]
-    myLayout = tiled ||| Core.Mirror tiled ||| Core.Full
+    a = mod_mod1
+    myLayout = tiled ||| Core.Mirror tiled ||| Core.full
       where
         tiled   = Core.Tall nmaster delta ratio
         nmaster = 1      -- Default number of windows in the master pane
