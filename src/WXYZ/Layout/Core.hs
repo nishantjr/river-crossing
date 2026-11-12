@@ -17,7 +17,7 @@
 -----------------------------------------------------------------------------
 
 module WXYZ.Layout.Core (
-    Full(..), Tall(..), Mirror(..),
+    full, Tall(..), Mirror(..),
     Resize(..), IncMasterN(..), Choose(..), (|||), CLR(..), ChangeLayout(..), JumpToLayout(..),
     mirrorRect, splitVertically,
     splitHorizontally, splitHorizontallyBy, splitVerticallyBy,
@@ -27,15 +27,14 @@ module WXYZ.Layout.Core (
   ) where
 
 import           WXYZ.River
-    ( LayoutClass(..)
-    , Message, SomeMessage(..), LayoutMessages(..), fromMessage
-    , Rectangle(..)
-    , WXYZ
-    )
 
 import           Control.Arrow ((***), second)
+import           Control.Applicative
 import           Control.Monad
-import           Data.Maybe (fromMaybe)
+import           Data.List (find)
+import qualified Data.Map as M
+import           Data.Maybe
+import           Control.Monad.State
 
 ------------------------------------------------------------------------
 
@@ -48,10 +47,27 @@ newtype IncMasterN = IncMasterN Int
 instance Message Resize
 instance Message IncMasterN
 
--- | Simple fullscreen mode. Renders the focused window fullscreen.
-data Full a = Full deriving (Show, Read)
+-- | Simple fullscreen mode, tracking the focused window.
+-- This differs from XMonads implementation in that tracking of the focused
+-- window happens in the Layout rather than through a StackSet provided by the
+-- WM. We explicitly track the focus of the first Seat, and ignore all others.
+full :: Full a
+full = Full Nothing
 
-instance LayoutClass Full a
+data Full a = Full (Maybe a) deriving (Show, Read)
+
+instance LayoutClass Full WindowHandle where
+    doLayout (Full a) r ws = do
+        firstSeat <- ((listToMaybe . M.elems . (.seats)) <$> get)
+        let focused = firstSeat >>= (.focused)
+        let fullWin = (inWs focused) <|> (inWs a)
+        case fullWin of
+            Just f  -> pure ([(f, r)], Just (Full $ Just f))
+            _       -> pure ([],       Just (Full Nothing))
+      where
+          inWs = find (flip elem ws)
+
+    description _ = "Full"
 
 -- | The builtin tiling mode of xmonad. Supports 'Shrink', 'Expand' and
 -- 'IncMasterN'.
