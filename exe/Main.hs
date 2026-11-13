@@ -21,18 +21,18 @@ main = wxyz $ WXYZConfig {
                  }
   where
     keyBindings = M.fromList
-        [ ((a,  xkb_key_t),     const $ shell "alacritty")
-        , ((a,  xkb_key_d),     const $ shell "bemenu-run")
+        [ ((a_, xkb_key_t),     const $ shell "alacritty")
+        , ((a_, xkb_key_d),     const $ shell "bemenu-run")
 
-        , ((a,  xkb_key_j),     focusNext)
-        , ((a,  xkb_key_k),     focusPrev)
+        , ((a_, xkb_key_j),     focusNext)
+        , ((a_, xkb_key_k),     focusPrev)
 
-        , ((a,  xkb_key_f),     const $ sendMessage Core.NextLayout)
+        , ((a_, xkb_key_f),     const $ sendMessage Core.NextLayout)
         , ((as, xkb_key_f),     withFocused toggleInformFullscreen)
         ]
-    a     = mod_mod1
-    shift = mod_shift
-    as    = a .|. shift
+    _s = mod_shift
+    a_ = mod_mod1
+    as = a_ .|. _s
     myLayout = tiled ||| Core.full
       where
         tiled   = Core.Tall nmaster delta ratio
