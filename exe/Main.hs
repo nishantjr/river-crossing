@@ -7,8 +7,10 @@ import WXYZ.River
     ( focusNext, focusPrev, withFocused
     , toggleInformFullscreen, sendMessage, shell
     , wxyz , WXYZConfig(..)
+    , Rectangle(..)
     )
 import WXYZ.Layout.Core as Core
+import WXYZ.Layout.Float (float, toggleFloating)
 import WXYZ.Protocol (mod_mod1, mod_shift)
 import WXYZ.XKB
 
@@ -29,14 +31,14 @@ main = wxyz $ WXYZConfig {
 
         , ((a_, xkb_key_f),     const $ sendMessage Core.NextLayout)
         , ((as, xkb_key_f),     withFocused toggleInformFullscreen)
+
+        , ((a_, xkb_key_space), withFocused $ toggleFloating (Rectangle 0 0 100 100))
         ]
     _s = mod_shift
     a_ = mod_mod1
     as = a_ .|. _s
-    myLayout = tiled ||| Core.full
-      where
-        tiled   = Core.Tall nmaster delta ratio
-        nmaster = 1      -- Default number of windows in the master pane
-        ratio   = 1/2    -- Default proportion of screen occupied by master pane
-        delta   = 3/100  -- Percent of screen to increment by when resizing panes
-
+    myLayout = float (tiled ||| Core.full)
+    tiled   = Core.Tall nmaster delta ratio
+    nmaster = 1      -- Default number of windows in the master pane
+    ratio   = 1/2    -- Default proportion of screen occupied by master pane
+    delta   = 3/100  -- Percent of screen to increment by when resizing panes

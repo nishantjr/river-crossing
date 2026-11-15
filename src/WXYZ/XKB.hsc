@@ -27,3 +27,6 @@ xkb_key_f =  #{const XKB_KEY_f}
 
 xkb_key_Tab :: KeySym
 xkb_key_Tab =  #{const XKB_KEY_Tab}
+
+xkb_key_space :: KeySym
+xkb_key_space =  #{const XKB_KEY_space}
