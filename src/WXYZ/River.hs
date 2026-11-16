@@ -11,7 +11,7 @@ module WXYZ.River (
     , Message, SomeMessage(..), LayoutMessages(..), fromMessage, sendMessage
 
     , Binding(..)
-    , Output(..), OutputHandle
+    , Output(..), OutputHandle, outputRect
     , Seat(..), SeatHandle
     , Window(..), WindowHandle
 

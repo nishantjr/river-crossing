@@ -11,6 +11,7 @@ import WXYZ.River
     )
 import WXYZ.Layout.Core as Core
 import WXYZ.Layout.Float (float, toggleFloating)
+import WXYZ.Layout.Workspaces (workspaces)
 import WXYZ.Protocol (mod_mod1, mod_shift)
 import WXYZ.XKB
 
@@ -37,8 +38,10 @@ main = wxyz $ WXYZConfig {
     _s = mod_shift
     a_ = mod_mod1
     as = a_ .|. _s
-    myLayout = float (tiled ||| Core.full)
+    myLayout = float $ workspaces [1..3] (tiled ||| Core.full)
     tiled   = Core.Tall nmaster delta ratio
     nmaster = 1      -- Default number of windows in the master pane
     ratio   = 1/2    -- Default proportion of screen occupied by master pane
     delta   = 3/100  -- Percent of screen to increment by when resizing panes
+
+

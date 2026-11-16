@@ -35,6 +35,7 @@ library
                     , WXYZ.River
                     , WXYZ.Layout.Core
                     , WXYZ.Layout.Float
+                    , WXYZ.Layout.Workspaces
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c
