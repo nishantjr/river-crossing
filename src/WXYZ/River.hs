@@ -42,7 +42,7 @@ import qualified Data.List as L
 import           Data.List ((\\))
 import           Data.Map (Map)
 import qualified Data.Map as M
-import           Data.Maybe (isNothing, fromMaybe, listToMaybe)
+import           Data.Maybe (isNothing, fromMaybe, listToMaybe, mapMaybe)
 import           Data.Typeable
 import           Data.Word
 import qualified System.Process as P
@@ -149,29 +149,34 @@ outputRect o =
        pos <- o.position
        pure (Rectangle pos.x pos.y dims.width dims.height)
 
+
+doLayoutAndUpdate :: WXYZ [(WindowHandle, Rectangle)]
+doLayoutAndUpdate = do
+    st <- get
+    -- We do not assign a rectangle. The outer layout will pick that up from
+    -- the outputs. See WXYZ.Layouts.Workspace for an example.
+    let rect = (Rectangle 0 0 0 0)
+    (winRects, newLayout)
+        <- doLayout st.currLayout rect (M.keys st.windows)
+    whenJust newLayout $ \l' -> put st{currLayout=l'}
+    pure winRects
+
 manageAndRender :: Event -> WXYZ (Maybe [Request])
-manageAndRender (WMManageStart wm) = runMaybeT $
-    do st <- get
-       config <- lift ask
-       firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
-       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
+manageAndRender (WMManageStart wm) = do
+    winRects <- doLayoutAndUpdate
+    st <- get
+    config <- ask
+    let shown   = map WindowShow (map fst winRects)
+        hidden  = map WindowHide (M.keys st.windows \\ (map fst winRects))
+        dims    = map mkProposeDim winRects
 
-       (winrects, newLayout)
-           <- lift $ doLayout st.currLayout rect (M.keys st.windows)
-       let shown = map WindowShow (map fst winrects)
-       let hidden = map WindowHide (M.keys st.windows \\ (map fst winrects))
-       let dims = map mkProposeDim winrects
-
-       xkb <- liftIO getRiverXKBBindings
-       binds <- lift $ mapM (uncurry $ bindSeat xkb)
-                        [(o, (modifier,sym,act)) |
-                            o <- st.newSeats,
-                            ((modifier,sym),act) <- M.toList config.keyBindings
-                        ]
-       case newLayout of
-           Just l' -> put st{currLayout=l'}
-           Nothing -> pure ()
-       pure $ shown ++ hidden ++ dims ++ (concat binds) ++ [ (WMManageFinish wm) ]
+    xkb <- liftIO getRiverXKBBindings
+    binds <- mapM (uncurry $ bindSeat xkb)
+                     [(o, (modifier,sym,act)) |
+                         o <- st.newSeats,
+                         ((modifier,sym),act) <- M.toList config.keyBindings
+                     ]
+    pure $ Just $ shown ++ hidden ++ dims ++ (concat binds) ++ [(WMManageFinish wm)]
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)
@@ -185,26 +190,18 @@ manageAndRender (WMManageStart wm) = runMaybeT $
          liftIO $ riverXKBBindingAddEventListeners binding
          pure [(XKBBindingEnable binding)]
 
-
-manageAndRender (WMRenderStart wm) = runMaybeT $
-    do st <- get
-       firstOutput:_ <- ((M.elems . (.outputs)) <$> get) -- Maybe Monad fails if no output available.
-       let rect = fromMaybe (Rectangle 0 0 1920 1080) (outputRect firstOutput)
-
-       (winrects, newLayout)
-           <- lift $ doLayout st.currLayout rect (M.keys st.windows)
-       positions <- mapM mkPositions winrects
-
-       case newLayout of
-           Just l' -> put st{currLayout=l'}
-           Nothing -> pure ()
-       pure $ positions ++ [ (WMRenderFinish wm) ]
+manageAndRender (WMRenderStart wm) = do
+    st <- get
+    winRects <- doLayoutAndUpdate
+    let positions = mapMaybe (mkPositions st.windows) winRects
+    pure $ Just $ positions ++ [ (WMRenderFinish wm) ]
   where
-    mkPositions :: (WindowHandle, Rectangle) -> MaybeT WXYZ Request
-    mkPositions (winHandle, (Rectangle x y _w _h)) =
-        do st <- get
-           Just win <- lift $ pure $ M.lookup winHandle st.windows
-           pure (NodeSetPosition win.node x y)
+    mkPositions :: (M.Map WindowHandle Window) -> (WindowHandle, Rectangle)
+            -> Maybe Request
+    mkPositions wins (winHandle, (Rectangle x y _w _h)) =
+        NodeSetPosition <$> (fmap (.node) (M.lookup winHandle wins))
+                        <*> Just x
+                        <*> Just y
 
 manageAndRender _ = pure Nothing
 
