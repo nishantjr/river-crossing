@@ -352,13 +352,13 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- 'handleMessage' (this restricts the risk of error, and makes
     -- testing much easier).
     handleMessage :: layout a -> SomeMessage -> WXYZ (Maybe (layout a))
-    handleMessage l  = return . pureMessage l
+    handleMessage l = return . pureMessage l
 
     -- | Respond to a message by (possibly) changing our layout, but
     -- taking no other action.  If the layout changes, the screen will
     -- be refreshed.
     pureMessage :: layout a -> SomeMessage -> Maybe (layout a)
-    pureMessage _ _  = Nothing
+    pureMessage _ _ = Nothing
 
     -- | This should be a human-readable string that is used when
     -- selecting layouts by name.  The default implementation is
