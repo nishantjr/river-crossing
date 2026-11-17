@@ -18,7 +18,11 @@ module WXYZ.River (
     , WXYZState(..)
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
-    , withFocused, focusWindow, focusNext, focusPrev
+
+    , currentSeat
+    , withFocused, focusedWindow
+    , focusWindow, focusNext, focusPrev
+
     , informFullscreen, informNotFullscreen, toggleInformFullscreen
   ) where
 
@@ -472,6 +476,12 @@ shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
 -- focus
 -- -----
 
+withFocused :: (WindowHandle -> WXYZ ()) -> SeatHandle -> WXYZ ()
+withFocused f s = do
+    st <- get
+    let mw = (M.lookup s st.seats >>= (.focused))
+    whenJust mw $ \w -> f w
+
 -- | Set the focused window for a seat
 focusWindow :: SeatHandle -> WindowHandle -> WXYZ ()
 focusWindow s w = do st <- get
@@ -498,12 +508,6 @@ focusNextInList ws s = do
                <|> listToMaybe ws
     whenJust mw $ \w -> focusWindow s w
 
-withFocused :: (WindowHandle -> WXYZ ()) -> SeatHandle -> WXYZ ()
-withFocused f s = do
-    st <- get
-    let mw = (M.lookup s st.seats >>= (.focused))
-    whenJust mw $ \w -> f w
-
 -- Inform fullscreen
 -- -----------------
 
@@ -528,6 +532,24 @@ toggleInformFullscreen w = void $ runMaybeT $
     ifM ((.informedFullscreen) <$> getWindow w)
         (lift $ informNotFullscreen w)
         (lift $ informFullscreen w)
+
+-- TODO HACK: These methods depend on knowning the current seat. This is only known
+-- in the context of a binding being triggered. Perhaps this can be added
+-- into the monadic context for handleMessage. This would disallow sendMessage
+-- from being called outside of a binding--something needed by e.g. the Hide
+-- message.
+
+-- | Get the 'current' seat. For now, this is hacked to use the the first seat.
+-- See the TODO in the README.
+currentSeat :: WXYZ (Maybe Seat)
+currentSeat = ((listToMaybe . M.elems . (.seats)) <$> get)
+
+-- | Get the currently focused window.
+focusedWindow :: WXYZ (Maybe WindowHandle)
+focusedWindow = do
+    seat <- currentSeat
+    pure $ seat >>= (.focused)
+
 
 -- Utilities
 -- =========

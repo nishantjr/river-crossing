@@ -32,9 +32,7 @@ import           Control.Arrow ((***), second)
 import           Control.Applicative
 import           Control.Monad
 import           Data.List (find)
-import qualified Data.Map as M
 import           Data.Maybe
-import           Control.Monad.State
 
 ------------------------------------------------------------------------
 
@@ -58,8 +56,7 @@ data Full a = Full (Maybe a) deriving (Show, Read)
 
 instance LayoutClass Full WindowHandle where
     doLayout (Full a) r ws = do
-        firstSeat <- ((listToMaybe . M.elems . (.seats)) <$> get)
-        let focused = firstSeat >>= (.focused)
+        focused <- focusedWindow
         let fullWin = (inWs focused) <|> (inWs a)
         case fullWin of
             Just f  -> pure ([(f, r)], Just (Full $ Just f))
