@@ -10,6 +10,8 @@ module WXYZ.River (
     , Layout, LayoutClass(..)
     , Message, SomeMessage(..), LayoutMessages(..), fromMessage, sendMessage
 
+    , WindowMessages(..), SeatMessages(..), OutputMessages(..)
+
     , Binding(..)
     , Output(..), OutputHandle, outputRect
     , Seat(..), SeatHandle
@@ -24,6 +26,7 @@ module WXYZ.River (
     , focusWindow, focusNext, focusPrev
 
     , informFullscreen, informNotFullscreen, toggleInformFullscreen
+
   ) where
 
 import           Prelude hiding (mod)
@@ -215,6 +218,7 @@ cacheRiverState (WMWindow _wm win) = runMaybeT $
        -- make it user configurable?
        forM_ (M.elems st.seats) $ \s -> do
           when (isNothing s.focused) (lift $ focusWindow s.handle win)
+       lift $ sendMessage (WindowCreated win)
        pure []
 cacheRiverState (WindowClosed win) = runMaybeT $
     do st <- get
@@ -222,15 +226,18 @@ cacheRiverState (WindowClosed win) = runMaybeT $
        -- focus next window if closed window is currently focused.
        forM_ (M.elems st.seats) $ \s -> do
           when ((Just win) == s.focused) (lift $ focusNext s.handle)
-       pure []
+       lift $ sendMessage (WindowDestroyed win)
+       pure [] -- XXX Send Destroy window message
 
 cacheRiverState (WMOutput _wm output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
-       pure [ ]
+       lift $ sendMessage (OutputCreated output)
+       pure []
 cacheRiverState (OutputRemoved output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.delete output st.outputs }
+       lift $ sendMessage (OutputDestroyed output)
        pure []
 cacheRiverState (OutputWlOutput output wl) = runMaybeT $
     do st <- get
@@ -250,10 +257,12 @@ cacheRiverState (WMSeat _wm seat) = runMaybeT $
        put $ st { seats = M.insert seat (Seat seat Nothing) st.seats
                 , newSeats = st.newSeats ++ [seat]
                 }
+       lift $ sendMessage (SeatCreated seat)
        pure []
 cacheRiverState (SeatRemoved seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.delete seat st.seats }
+       lift $ sendMessage (SeatDestroyed seat)
        pure []
 
 cacheRiverState _ = pure Nothing
@@ -396,6 +405,18 @@ data LayoutMessages = Hide              -- ^ sent when a layout becomes non-visi
     deriving Eq
 
 instance Message LayoutMessages
+
+-- | These book-keeping messages allow layouts such as Workspaces to keep
+-- track of seats and outputs.
+
+data WindowMessages a = WindowCreated a             | WindowDestroyed a
+data SeatMessages     = SeatCreated SeatHandle      | SeatDestroyed SeatHandle
+data OutputMessages   = OutputCreated OutputHandle  | OutputDestroyed OutputHandle
+
+instance (Typeable a) => Message (WindowMessages a)
+instance                 Message SeatMessages
+instance                 Message OutputMessages
+
 
 -- | Throw a message to the current 'LayoutClass' possibly modifying how we
 -- layout the windows.
