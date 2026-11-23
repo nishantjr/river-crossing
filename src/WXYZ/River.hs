@@ -420,6 +420,7 @@ instance (Typeable a) => Message (WindowMessages a)
 -- XXX force a ManageDirty?
 sendMessage :: Message a => a -> WXYZ ()
 sendMessage a = do
+    liftIO $ putStrLn $ "SendMessage"
     st <- get
     layout' <- handleMessage st.currLayout (SomeMessage a)
     case layout' of

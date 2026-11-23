@@ -7,6 +7,13 @@ type KeySym = Word32
 
 #include "xkbcommon/xkbcommon-keysyms.h"
 
+xkb_key_1 :: KeySym
+xkb_key_1 =  #{const XKB_KEY_1}
+xkb_key_2 :: KeySym
+xkb_key_2 =  #{const XKB_KEY_2}
+xkb_key_3 :: KeySym
+xkb_key_3 =  #{const XKB_KEY_3}
+
 xkb_key_h :: KeySym
 xkb_key_h =  #{const XKB_KEY_h}
 

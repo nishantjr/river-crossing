@@ -11,7 +11,7 @@ import WXYZ.River
     )
 import WXYZ.Layout.Core as Core
 import WXYZ.Layout.Float (float, toggleFloating)
-import WXYZ.Layout.Workspaces (workspaces)
+import WXYZ.Layout.Workspaces (view, workspaces)
 import WXYZ.Protocol (mod_mod1, mod_shift)
 import WXYZ.XKB
 
@@ -34,6 +34,10 @@ main = wxyz $ WXYZConfig {
         , ((as, xkb_key_f),     withFocused toggleInformFullscreen)
 
         , ((a_, xkb_key_space), withFocused $ toggleFloating (Rectangle 0 0 100 100))
+
+        , ((a_, xkb_key_1),     view 1)
+        , ((a_, xkb_key_2),     view 2)
+        , ((a_, xkb_key_3),     view 3)
         ]
     _s = mod_shift
     a_ = mod_mod1
