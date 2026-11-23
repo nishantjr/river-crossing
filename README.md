@@ -23,7 +23,7 @@ Our first goal is to get something we can use as a daily driver:
       to plain list of Windows.
 - [ ] Layout combinator for Full
 - [ ] Layout combinator for Workspaces
-- [ ] Layout combinator for Floating
+- [x] Layout combinator for Floating
 - [ ] Port pure portions of BSP Layout
 - [ ] Inform River re the stacking order
 
