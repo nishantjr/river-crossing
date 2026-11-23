@@ -31,7 +31,6 @@ data Workspaces l a = Workspaces
     , workspaces :: M.Map Int (Workspace l a)
 
     , unassignedSeats :: [SeatHandle] -- seats that haven't been assigned an
-                                      --
     }
 deriving instance (Show a, Show (l a)) => Show (Workspaces l a)
 
@@ -83,16 +82,21 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
                            M.keys l.workspaces \\  B.elems l.outputs
         pure l { outputs = B.insert o unassigned l.outputs }
 
-     -- handleMessage l m | Just (OutputDestroyed o) <- fromMessage m = undefined
+    handleMessage l m | Just (OutputDestroyed o) <- fromMessage m = pure $ Just $
+        l { outputs = B.delete o l.outputs
+          , unassignedSeats = [s | (s, o') <- M.toList l.seats, o == o']
+          }
+
     handleMessage l m | Just (SeatCreated s) <- fromMessage m =
-      do firstOutput <- listToMaybe . M.keys . (.outputs) <$> get
-         case firstOutput of
-           Just o  -> pure $ Just $ l { seats = M.insert s o l.seats }
-           Nothing -> pure $ Just $ l { unassignedSeats = s:l.unassignedSeats }
+     do firstOutput <- listToMaybe . M.keys . (.outputs) <$> get
+        case firstOutput of
+          Just o  -> pure $ Just $ l { seats = M.insert s o l.seats }
+          Nothing -> pure $ Just $ l { unassignedSeats = s:l.unassignedSeats }
 
---     handleMessage l m | Just (SeatDestroyed   s) <- fromMessage m
---         = undefined
-
+    handleMessage l m | Just (SeatDestroyed   s) <- fromMessage m =
+        pure $ Just $ l { seats = M.delete s l.seats
+                        , unassignedSeats = delete s l.unassignedSeats
+                        }
 
     handleMessage this m = runMaybeT $ do
         seat <- MaybeT currentSeat
@@ -101,6 +105,3 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
         ws <- hoistMaybe $ M.lookup tag this.workspaces
         l' <- MaybeT $ handleMessage ws.layout m
         pure $ this { workspaces = M.insert tag (ws { layout = l'}) this.workspaces }
-
-
-
