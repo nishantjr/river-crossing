@@ -9,8 +9,7 @@ module WXYZ.River (
 
     , Layout, LayoutClass(..)
     , Message, SomeMessage(..), LayoutMessages(..), fromMessage, sendMessage
-
-    , WindowMessages(..), SeatMessages(..), OutputMessages(..)
+    , WindowMessages(..)
 
     , Binding(..)
     , Output(..), OutputHandle, outputRect
@@ -232,12 +231,12 @@ cacheRiverState (WindowClosed win) = runMaybeT $
 cacheRiverState (WMOutput _wm output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.insert output (Output output Nothing Nothing Nothing) (st.outputs) }
-       lift $ sendMessage (OutputCreated output)
+       lift $ sendMessage (OutputCreated @WindowHandle output)
        pure []
 cacheRiverState (OutputRemoved output) = runMaybeT $
     do st <- get
        put $ st { outputs = M.delete output st.outputs }
-       lift $ sendMessage (OutputDestroyed output)
+       lift $ sendMessage (OutputDestroyed @WindowHandle  output)
        pure []
 cacheRiverState (OutputWlOutput output wl) = runMaybeT $
     do st <- get
@@ -257,12 +256,12 @@ cacheRiverState (WMSeat _wm seat) = runMaybeT $
        put $ st { seats = M.insert seat (Seat seat Nothing) st.seats
                 , newSeats = st.newSeats ++ [seat]
                 }
-       lift $ sendMessage (SeatCreated seat)
+       lift $ sendMessage (SeatCreated @WindowHandle seat)
        pure []
 cacheRiverState (SeatRemoved seat) = runMaybeT $
     do st <- get
        put $ st { seats = M.delete seat st.seats }
-       lift $ sendMessage (SeatDestroyed seat)
+       lift $ sendMessage (SeatDestroyed @WindowHandle seat)
        pure []
 
 cacheRiverState _ = pure Nothing
@@ -410,12 +409,10 @@ instance Message LayoutMessages
 -- track of seats and outputs.
 
 data WindowMessages a = WindowCreated a             | WindowDestroyed a
-data SeatMessages     = SeatCreated SeatHandle      | SeatDestroyed SeatHandle
-data OutputMessages   = OutputCreated OutputHandle  | OutputDestroyed OutputHandle
+                      | SeatCreated SeatHandle      | SeatDestroyed SeatHandle
+                      | OutputCreated OutputHandle  | OutputDestroyed OutputHandle
 
 instance (Typeable a) => Message (WindowMessages a)
-instance                 Message SeatMessages
-instance                 Message OutputMessages
 
 
 -- | Throw a message to the current 'LayoutClass' possibly modifying how we

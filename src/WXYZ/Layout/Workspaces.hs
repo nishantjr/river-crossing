@@ -77,23 +77,23 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
       where
         deleteWin a ws = ws { wins = delete a ws.wins }
 
-    handleMessage l m | Just (OutputCreated o) <- fromMessage m = runMaybeT $ do
+    handleMessage l m | Just (OutputCreated o) <- fromMessage @(WindowMessages a) m = runMaybeT $ do
         unassigned <- hoistMaybe $ listToMaybe $
                            M.keys l.workspaces \\  B.elems l.outputs
         pure l { outputs = B.insert o unassigned l.outputs }
 
-    handleMessage l m | Just (OutputDestroyed o) <- fromMessage m = pure $ Just $
+    handleMessage l m | Just (OutputDestroyed o) <- fromMessage @(WindowMessages a) m = pure $ Just $
         l { outputs = B.delete o l.outputs
           , unassignedSeats = [s | (s, o') <- M.toList l.seats, o == o']
           }
 
-    handleMessage l m | Just (SeatCreated s) <- fromMessage m =
+    handleMessage l m | Just (SeatCreated s) <- fromMessage @(WindowMessages a) m =
      do firstOutput <- listToMaybe . M.keys . (.outputs) <$> get
         case firstOutput of
           Just o  -> pure $ Just $ l { seats = M.insert s o l.seats }
           Nothing -> pure $ Just $ l { unassignedSeats = s:l.unassignedSeats }
 
-    handleMessage l m | Just (SeatDestroyed   s) <- fromMessage m =
+    handleMessage l m | Just (SeatDestroyed s) <- fromMessage @(WindowMessages a) m =
         pure $ Just $ l { seats = M.delete s l.seats
                         , unassignedSeats = delete s l.unassignedSeats
                         }
