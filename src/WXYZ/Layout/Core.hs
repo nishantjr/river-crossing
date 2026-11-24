@@ -56,7 +56,7 @@ data Full a = Full (Maybe a) deriving (Show, Read)
 
 instance LayoutClass Full WindowHandle where
     doLayout (Full a) r ws = do
-        focused <- focusedWindow
+        focused <- focusedWindow'
         let fullWin = (inWs focused) <|> (inWs a)
         case fullWin of
             Just f  -> pure ([(f, r)], Just (Full $ Just f))

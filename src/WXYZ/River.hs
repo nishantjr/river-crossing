@@ -20,8 +20,8 @@ module WXYZ.River (
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
 
-    , currentSeat
-    , withFocused, focusedWindow
+    , withFocused
+    , currentSeat', focusedWindow'
     , focusWindow, focusNext, focusPrev
 
     , informFullscreen, informNotFullscreen, toggleInformFullscreen
@@ -557,13 +557,13 @@ toggleInformFullscreen w = void $ runMaybeT $
 
 -- | Get the 'current' seat. For now, this is hacked to use the the first seat.
 -- See the TODO in the README.
-currentSeat :: WXYZ (Maybe Seat)
-currentSeat = ((listToMaybe . M.elems . (.seats)) <$> get)
+currentSeat' :: WXYZ (Maybe Seat)
+currentSeat' = ((listToMaybe . M.elems . (.seats)) <$> get)
 
 -- | Get the currently focused window.
-focusedWindow :: WXYZ (Maybe WindowHandle)
-focusedWindow = do
-    seat <- currentSeat
+focusedWindow' :: WXYZ (Maybe WindowHandle)
+focusedWindow' = do
+    seat <- currentSeat'
     pure $ seat >>= (.focused)
 
 
