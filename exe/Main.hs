@@ -11,7 +11,7 @@ import WXYZ.River
     )
 import WXYZ.Layout.Core as Core
 import WXYZ.Layout.Float (float, toggleFloating)
-import WXYZ.Layout.Workspaces (view, workspaces)
+import WXYZ.Layout.Workspaces (shift, view, workspaces)
 import WXYZ.Protocol (mod_mod1, mod_shift)
 import WXYZ.XKB
 
@@ -38,6 +38,11 @@ main = wxyz $ WXYZConfig {
         , ((a_, xkb_key_1),     view 1)
         , ((a_, xkb_key_2),     view 2)
         , ((a_, xkb_key_3),     view 3)
+
+        , ((as, xkb_key_1),     shift 1)
+        , ((as, xkb_key_2),     shift 2)
+        , ((as, xkb_key_3),     shift 3)
+
         ]
     _s = mod_shift
     a_ = mod_mod1

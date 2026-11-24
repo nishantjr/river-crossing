@@ -1,6 +1,6 @@
 module WXYZ.Layout.Workspaces (
         workspaces,
-        view, WorkspaceMessages(..)
+        view, shift, WorkspaceMessages(..)
     ) where
 
 import           Control.Applicative
@@ -149,3 +149,7 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
 
 view :: Tag -> SeatHandle -> WXYZ ()
 view t s = sendMessage (View @WindowHandle s t)
+
+shift :: Tag -> SeatHandle -> WXYZ ()
+shift t s = void $ runMaybeT $ (MaybeT $ focusedWindow s)
+                           >>= (\w -> lift $ sendMessage (MoveWindowToWorkspace w t))
