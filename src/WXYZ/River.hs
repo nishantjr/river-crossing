@@ -20,7 +20,7 @@ module WXYZ.River (
     , WXYZConfig(..), WXYZ, runWXYZ
     , shell
 
-    , withFocused
+    , withFocused, focusedWindow
     , currentSeat', focusedWindow'
     , focusWindow, focusNext, focusPrev
 
@@ -519,10 +519,16 @@ focusPrev s = do st <- get
 
 focusNextInList :: [WindowHandle] -> SeatHandle -> WXYZ ()
 focusNextInList ws s = do
-    st <- get
-    let mw = (M.lookup s st.seats >>= (.focused) >>= (flip nextItem ws))
+    mfw <- focusedWindow s
+    let mw = (mfw >>= (flip nextItem ws))
                <|> listToMaybe ws
     whenJust mw $ \w -> focusWindow s w
+
+focusedWindow :: SeatHandle -> WXYZ (Maybe WindowHandle)
+focusedWindow s = do
+    st <- get
+    pure $ M.lookup s st.seats >>= (.focused)
+
 
 -- Inform fullscreen
 -- -----------------
@@ -557,14 +563,12 @@ toggleInformFullscreen w = void $ runMaybeT $
 
 -- | Get the 'current' seat. For now, this is hacked to use the the first seat.
 -- See the TODO in the README.
-currentSeat' :: WXYZ (Maybe Seat)
-currentSeat' = ((listToMaybe . M.elems . (.seats)) <$> get)
+currentSeat' :: WXYZ (Maybe SeatHandle)
+currentSeat' = ((listToMaybe . M.keys . (.seats)) <$> get)
 
 -- | Get the currently focused window.
 focusedWindow' :: WXYZ (Maybe WindowHandle)
-focusedWindow' = do
-    seat <- currentSeat'
-    pure $ seat >>= (.focused)
+focusedWindow' = runMaybeT (MaybeT currentSeat' >>= (MaybeT . focusedWindow))
 
 
 -- Utilities

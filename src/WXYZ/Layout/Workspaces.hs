@@ -85,7 +85,7 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
         -- Use the workspace of the current seat if it has an output,
         -- or the first output's workspace or else the first workspace.
         mseat <- lift currentSeat'
-        tag <- hoistMaybe $   (mseat <&> (.handle)
+        tag <- hoistMaybe $   (mseat
                                  >>= flip M.lookup l.seats
                                  >>= flip B.lookup l.outputs)
                           <|> (listToMaybe $ B.elems l.outputs)
@@ -140,7 +140,7 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
     -- Fall back --------------------------------------------------------------
     handleMessage this m = runMaybeT $ do
         seat <- MaybeT currentSeat'
-        oh <- hoistMaybe $ M.lookup seat.handle this.seats
+        oh <- hoistMaybe $ M.lookup seat this.seats
         tag <- hoistMaybe $ B.lookup oh this.outputs
         ws <- hoistMaybe $ M.lookup tag this.workspaces
         l' <- MaybeT $ handleMessage ws.layout m
