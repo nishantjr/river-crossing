@@ -4,7 +4,7 @@
 
 -- --------------------------------------------------------------------------
 -- |
--- Module      :  XMonad.Layout
+-- Module      :  Crossing.Layout.Core
 -- Copyright   :  (c) Spencer Janssen 2007
 -- License     :  BSD3-style (see LICENSE)
 --
@@ -16,7 +16,7 @@
 --
 -----------------------------------------------------------------------------
 
-module WXYZ.Layout.Core (
+module Crossing.Layout.Core (
     full, Tall(..), Mirror(..),
     Resize(..), IncMasterN(..), Choose(..), (|||), CLR(..), ChangeLayout(..), JumpToLayout(..),
     mirrorRect, splitVertically,
@@ -26,7 +26,7 @@ module WXYZ.Layout.Core (
 
   ) where
 
-import           WXYZ.River
+import           Crossing.River
 
 import           Control.Arrow ((***), second)
 import           Control.Applicative
@@ -204,14 +204,14 @@ instance Message NextNoWrap
 
 -- | A small wrapper around handleMessage, as it is tedious to write
 -- SomeMessage repeatedly.
-handle :: (LayoutClass l a, Message m) => l a -> m -> WXYZ (Maybe (l a))
+handle :: (LayoutClass l a, Message m) => l a -> m -> Crossing (Maybe (l a))
 handle l m = handleMessage l (SomeMessage m)
 
 -- | A smart constructor that takes some potential modifications, returns a
 -- new structure if any fields have changed, and performs any necessary cleanup
 -- on newly non-visible layouts.
 choose :: (LayoutClass l a, LayoutClass r a)
-       => Choose l r a -> CLR -> Maybe (l a) -> Maybe (r a) -> WXYZ (Maybe (Choose l r a))
+       => Choose l r a -> CLR -> Maybe (l a) -> Maybe (r a) -> Crossing (Maybe (Choose l r a))
 choose (Choose d _ _) d' Nothing Nothing | d == d' = return Nothing
 choose (Choose d l r) d' ml      mr = f lr
  where

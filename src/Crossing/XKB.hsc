@@ -1,4 +1,4 @@
-module WXYZ.XKB
+module Crossing.XKB
   where
 
 import           Data.Word (Word32)

@@ -3,20 +3,20 @@ module Main (main) where
 import qualified Data.Map as M
 import Data.Bits ((.|.))
 
-import WXYZ.River
+import Crossing.River
     ( focusNext, focusPrev, withFocused
     , toggleInformFullscreen, sendMessage, shell
-    , wxyz , WXYZConfig(..)
+    , crossing , CrossingConfig(..)
     , Rectangle(..)
     )
-import WXYZ.Layout.Core as Core
-import WXYZ.Layout.Float (float, toggleFloating)
-import WXYZ.Layout.Workspaces (shift, view, workspaces)
-import WXYZ.Protocol (mod_mod1, mod_shift)
-import WXYZ.XKB
+import Crossing.Layout.Core as Core
+import Crossing.Layout.Float (float, toggleFloating)
+import Crossing.Layout.Workspaces (shift, view, workspaces)
+import Crossing.Protocol (mod_mod1, mod_shift)
+import Crossing.XKB
 
 main :: IO ()
-main = wxyz $ WXYZConfig {
+main = crossing $ CrossingConfig {
                    layout = myLayout
                  , onStartup =    shell "swaybg -c 123123"
                                >> shell "waybar"

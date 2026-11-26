@@ -24,19 +24,19 @@ void init_event_queue() {
 }
 
 // Allocates and adds a new event in the queue; initialized to null.
-struct wxyz_event* wxyz_new_event() {
-    struct wxyz_event *ev = calloc(1, sizeof(*ev));
+struct crossing_event* crossing_new_event() {
+    struct crossing_event *ev = calloc(1, sizeof(*ev));
     wl_list_insert(&event_queue, &ev->link); // insert at front
     return ev;
 }
 // Returns event from the head of the queue. Must be freed.
-struct wxyz_event* wxyz_next_event(struct wl_display* display)
+struct crossing_event* crossing_next_event(struct wl_display* display)
 {
     while (true) {
         if (!wl_list_empty(&event_queue)) {
             struct wl_list* last = event_queue.prev;
             wl_list_remove(last);
-            struct wxyz_event* ret = wl_container_of(last, ret, link);
+            struct crossing_event* ret = wl_container_of(last, ret, link);
             return ret;
         }
 
@@ -53,7 +53,7 @@ struct wxyz_event* wxyz_next_event(struct wl_display* display)
 // --------------
 
 static void seat_handle_removed(void *data, struct river_seat_v1 *seat) {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = SEAT_REMOVED;
     event->seat_removed.seat = seat;
 }
@@ -86,25 +86,25 @@ const struct river_seat_v1_listener river_seat_listener = {
 
 static void output_handle_removed(void *data, struct river_output_v1 *output)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = OUTPUT_REMOVED;
     event->output_removed.output = output;
 }
 static void output_handle_wl_output(void *data, struct river_output_v1 *output, uint32_t name)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = OUTPUT_WL_OUTPUT;
     event->output_wl_output.output = output;
 }
 static void output_handle_position(void *data, struct river_output_v1 *output, int32_t x, int32_t y) {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = OUTPUT_POSITION;
     event->output_position.output = output;
     event->output_position.x = x;
     event->output_position.y = y;
 }
 static void output_handle_dimensions(void *data, struct river_output_v1 *output, int32_t width, int32_t height) {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = OUTPUT_DIMENSIONS;
     event->output_dimensions.output = output;
     event->output_dimensions.width = width;
@@ -124,126 +124,126 @@ const struct river_output_v1_listener river_output_listener = {
 
 static void window_handle_closed(void *data, struct river_window_v1 *window)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_CLOSED;
     event->window_closed.window = window;
 }
 
 static void window_handle_dimensions( void *data, struct river_window_v1 *window, int32_t width, int32_t height)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_DIMENSIONS;
     event->window_dimensions.window = window;
 }
 
 static void window_handle_pointer_move_requested( void *data, struct river_window_v1 *window, struct river_seat_v1 *river_seat)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_POINTER_MOVE_REQUESTED;
     event->window_pointer_move_requested.window = window;
 }
 
 static void window_handle_pointer_resize_requested( void *data, struct river_window_v1 *window, struct river_seat_v1 *river_seat, uint32_t edges)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_POINTER_RESIZE_REQUESTED;
     event->window_pointer_resize_requested.window = window;
 }
 
 static void window_handle_dimensions_hint(void *data, struct river_window_v1 *window, int32_t min_width, int32_t min_height, int32_t max_width, int32_t max_height)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_DIMENSIONS_HINT;
     event->window_dimensions_hint.window = window;
 }
 
 static void window_handle_app_id(void *data, struct river_window_v1 *window, const char *app_id)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_APP_ID;
     event->window_app_id.window = window;
 }
 
 static void window_handle_title(void *data, struct river_window_v1 *window, const char *title)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_TITLE;
     event->window_title.window = window;
 }
 
 static void window_handle_parent(void *data, struct river_window_v1 *window, struct river_window_v1 *parent)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_PARENT;
     event->window_parent.window = window;
 }
 
 static void window_handle_decoration_hint(void *data, struct river_window_v1 *window, uint32_t hint)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_DECORATION_HINT;
     event->window_decoration_hint.window = window;
 }
 
 static void window_handle_show_window_menu_requested(void *data, struct river_window_v1 *window, int32_t x, int32_t y)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_SHOW_WINDOW_MENU_REQUESTED;
     event->window_show_window_menu_requested.window = window;
 }
 
 static void window_handle_maximize_requested(void *data, struct river_window_v1 *window)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_MAXIMIZE_REQUESTED;
     event->window_maximize_requested.window = window;
 }
 
 static void window_handle_unmaximize_requested(void *data, struct river_window_v1 *window)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_UNMAXIMIZE_REQUESTED;
     event->window_unmaximize_requested.window = window;
 }
 
 static void window_handle_fullscreen_requested(void *data, struct river_window_v1 *window, struct river_output_v1 *river_output)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_FULLSCREEN_REQUESTED;
     event->window_fullscreen_requested.window = window;
 }
 
 static void window_handle_exit_fullscreen_requested(void *data, struct river_window_v1 *window)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_EXIT_FULLSCREEN_REQUESTED;
     event->window_exit_fullscreen_requested.window = window;
 }
 
 static void window_handle_minimize_requested(void *data, struct river_window_v1 *window)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_MINIMIZE_REQUESTED;
     event->window_minimize_requested.window = window;
 }
 
 static void window_handle_unreliable_pid(void *data, struct river_window_v1 *window, int32_t unreliable_pid)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_UNRELIABLE_PID;
     event->window_unreliable_pid.window = window;
 }
 
 static void window_handle_presentation_hint(void *data, struct river_window_v1 *window, uint32_t hint)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_PRESENTATION_HINT;
     event->window_presentation_hint.window = window;
 }
 
 static void window_handle_identifier(void *data, struct river_window_v1 *window, const char *indentifier)
 {
-    struct wxyz_event* event = wxyz_new_event();
+    struct crossing_event* event = crossing_new_event();
     event->type = WINDOW_IDENTIFIER;
     event->window_identifier.window = window;
 }
@@ -275,73 +275,73 @@ const struct river_window_v1_listener river_window_listener = {
 
 static void wm_handle_unavailable(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_UNAVAILABLE;
-    wx_event->wm_unavailable.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_UNAVAILABLE;
+    crossing_event->wm_unavailable.river_wm = obj;
 }
 
 static void wm_handle_finished(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_FINISHED;
-    wx_event->wm_finished.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_FINISHED;
+    crossing_event->wm_finished.river_wm = obj;
 }
 
 static void wm_handle_manage_start(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_MANAGE_START;
-    wx_event->wm_manage_start.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_MANAGE_START;
+    crossing_event->wm_manage_start.river_wm = obj;
 }
 
 static void wm_handle_render_start(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_RENDER_START;
-    wx_event->wm_render_start.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_RENDER_START;
+    crossing_event->wm_render_start.river_wm = obj;
 }
 
 static void wm_handle_session_locked(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_SESSION_LOCKED;
-    wx_event->wm_session_locked.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_SESSION_LOCKED;
+    crossing_event->wm_session_locked.river_wm = obj;
 }
 
 static void wm_handle_session_unlocked(void *data, struct river_window_manager_v1 *obj)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_SESSION_UNLOCKED;
-    wx_event->wm_session_unlocked.river_wm = obj;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_SESSION_UNLOCKED;
+    crossing_event->wm_session_unlocked.river_wm = obj;
 }
 
 static void wm_handle_window(
     void *data, struct river_window_manager_v1 *wm, struct river_window_v1 *river_window)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_WINDOW;
-    wx_event->wm_window.river_wm = wm;
-    wx_event->wm_window.window = river_window;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_WINDOW;
+    crossing_event->wm_window.river_wm = wm;
+    crossing_event->wm_window.window = river_window;
     river_window_v1_add_listener(river_window, &river_window_listener, NULL);
 }
 
 static void wm_handle_output(
     void *data, struct river_window_manager_v1 *obj, struct river_output_v1 *river_output)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_OUTPUT;
-    wx_event->wm_output.river_wm = obj;
-    wx_event->wm_output.output = river_output;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_OUTPUT;
+    crossing_event->wm_output.river_wm = obj;
+    crossing_event->wm_output.output = river_output;
     river_output_v1_add_listener(river_output, &river_output_listener, NULL);
 }
 
 static void wm_handle_seat(
     void *data, struct river_window_manager_v1 *obj, struct river_seat_v1 *river_seat)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = WM_SEAT;
-    wx_event->wm_seat.river_wm = obj;
-    wx_event->wm_seat.seat = river_seat;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = WM_SEAT;
+    crossing_event->wm_seat.river_wm = obj;
+    crossing_event->wm_seat.seat = river_seat;
     river_seat_v1_add_listener(river_seat, &river_seat_listener, NULL);
 }
 
@@ -362,9 +362,9 @@ static const struct river_window_manager_v1_listener wm_listener = {
 
 static void xkb_binding_handle_pressed(void *data, struct river_xkb_binding_v1 *binding)
 {
-    struct wxyz_event* wx_event = wxyz_new_event();
-    wx_event->type = XKB_BINDING_PRESSED;
-    wx_event->xkb_binding_pressed.binding = binding;
+    struct crossing_event* crossing_event = crossing_new_event();
+    crossing_event->type = XKB_BINDING_PRESSED;
+    crossing_event->xkb_binding_pressed.binding = binding;
 }
 
 static void xkb_binding_handle_released(void *data, struct river_xkb_binding_v1 *obj)

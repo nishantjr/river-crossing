@@ -1,6 +1,6 @@
 {-# LANGUAGE CApiFFI #-}
 
-module WXYZ.Protocol
+module Crossing.Protocol
     ( wlDisplayConnect
     , awaitRegistry
     , getRiverWM
@@ -36,7 +36,7 @@ module WXYZ.Protocol
     )
   where
 
-import           WXYZ.XKB (KeySym)
+import           Crossing.XKB (KeySym)
 
 import           Data.Word
 import           Data.Int (Int32)
@@ -174,14 +174,14 @@ foreign import capi "cbits/river.h get_river_xkb_bindings"
     getRiverXKBBindings :: IO RiverXKBBindings
 
 data CEvent
-foreign import capi "cbits/river.h wxyz_next_event"
-    _wxyz_next_event :: WlDisplay -> IO (Ptr CEvent)
+foreign import capi "cbits/river.h crossing_next_event"
+    _crossing_next_event :: WlDisplay -> IO (Ptr CEvent)
 next_event :: WlDisplay -> IO (Maybe Event)
 next_event display =
-  do ptr <- _wxyz_next_event display
+  do ptr <- _crossing_next_event display
      if (ptr == nullPtr)
      then pure Nothing
-     else do ty <- #{peek struct wxyz_event, type} ptr
+     else do ty <- #{peek struct crossing_event, type} ptr
              unparsed <- unparse ty ptr
              free ptr
              print unparsed
@@ -189,111 +189,111 @@ next_event display =
   where
     unparse :: Word8 -> Ptr CEvent -> IO (Maybe Event)
     unparse #{const WM_UNAVAILABLE} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_unavailable.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_unavailable.river_wm} ptr)
              pure $ Just (WMUnavailable wm)
     unparse #{const WM_FINISHED} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_finished.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_finished.river_wm} ptr)
              pure $ Just (WMFinished wm)
     unparse #{const WM_MANAGE_START} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_manage_start.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_manage_start.river_wm} ptr)
              pure $ Just (WMManageStart wm)
     unparse #{const WM_RENDER_START} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_render_start.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_render_start.river_wm} ptr)
              pure $ Just (WMRenderStart wm)
     unparse #{const WM_SESSION_LOCKED} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_session_locked.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_session_locked.river_wm} ptr)
              pure $ Just (WMSessionLocked wm)
     unparse #{const WM_SESSION_UNLOCKED} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_session_unlocked.river_wm} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_session_unlocked.river_wm} ptr)
              pure $ Just (WMSessionUnlocked wm)
     unparse #{const WM_WINDOW} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_window.river_wm} ptr)
-             window <- (#{peek struct wxyz_event, wm_window.window} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_window.river_wm} ptr)
+             window <- (#{peek struct crossing_event, wm_window.window} ptr)
              pure $ Just (WMWindow wm window)
     unparse #{const WM_OUTPUT} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_output.river_wm} ptr)
-             output <- (#{peek struct wxyz_event, wm_output.output} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_output.river_wm} ptr)
+             output <- (#{peek struct crossing_event, wm_output.output} ptr)
              pure $ Just (WMOutput wm output)
     unparse #{const WM_SEAT} ptr
-        = do wm <- (#{peek struct wxyz_event, wm_seat.river_wm} ptr)
-             seat <- (#{peek struct wxyz_event, wm_seat.seat} ptr)
+        = do wm <- (#{peek struct crossing_event, wm_seat.river_wm} ptr)
+             seat <- (#{peek struct crossing_event, wm_seat.seat} ptr)
              pure $ Just (WMSeat wm seat)
 
     unparse #{const WINDOW_CLOSED} ptr
-        = do window <- (#{peek struct wxyz_event, window_closed.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_closed.window} ptr)
              pure $ Just (WindowClosed window)
     unparse #{const WINDOW_DIMENSIONS_HINT} ptr
-        = do window <- (#{peek struct wxyz_event, window_dimensions_hint.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_dimensions_hint.window} ptr)
              pure $ Just (WindowDimensionsHint window)
     unparse #{const WINDOW_DIMENSIONS} ptr
-        = do window <- (#{peek struct wxyz_event, window_dimensions.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_dimensions.window} ptr)
              pure $ Just (WindowDimensions window)
     unparse #{const WINDOW_APP_ID} ptr
-        = do window <- (#{peek struct wxyz_event, window_app_id.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_app_id.window} ptr)
              pure $ Just (WindowAppId window)
     unparse #{const WINDOW_TITLE} ptr
-        = do window <- (#{peek struct wxyz_event, window_title.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_title.window} ptr)
              pure $ Just (WindowTitle window)
     unparse #{const WINDOW_PARENT} ptr
-        = do window <- (#{peek struct wxyz_event, window_parent.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_parent.window} ptr)
              pure $ Just (WindowParent window)
     unparse #{const WINDOW_DECORATION_HINT} ptr
-        = do window <- (#{peek struct wxyz_event, window_decoration_hint.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_decoration_hint.window} ptr)
              pure $ Just (WindowDecorationHint window)
     unparse #{const WINDOW_POINTER_MOVE_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_pointer_move_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_pointer_move_requested.window} ptr)
              pure $ Just (WindowPointerMoveRequested window)
     unparse #{const WINDOW_POINTER_RESIZE_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_pointer_resize_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_pointer_resize_requested.window} ptr)
              pure $ Just (WindowPointerResizeRequested window)
     unparse #{const WINDOW_SHOW_WINDOW_MENU_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_show_window_menu_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_show_window_menu_requested.window} ptr)
              pure $ Just (WindowShowWindowMenuRequested window)
     unparse #{const WINDOW_MAXIMIZE_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_maximize_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_maximize_requested.window} ptr)
              pure $ Just (WindowMaximizeRequested window)
     unparse #{const WINDOW_UNMAXIMIZE_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_unmaximize_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_unmaximize_requested.window} ptr)
              pure $ Just (WindowUnmaximizeRequested window)
     unparse #{const WINDOW_FULLSCREEN_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_fullscreen_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_fullscreen_requested.window} ptr)
              pure $ Just (WindowFullscreenRequested window)
     unparse #{const WINDOW_EXIT_FULLSCREEN_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_exit_fullscreen_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_exit_fullscreen_requested.window} ptr)
              pure $ Just (WindowExitFullscreenRequested window)
     unparse #{const WINDOW_MINIMIZE_REQUESTED} ptr
-        = do window <- (#{peek struct wxyz_event, window_minimize_requested.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_minimize_requested.window} ptr)
              pure $ Just (WindowMinimizeRequested window)
     unparse #{const WINDOW_UNRELIABLE_PID} ptr
-        = do window <- (#{peek struct wxyz_event, window_unreliable_pid.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_unreliable_pid.window} ptr)
              pure $ Just (WindowUnreliablePid window)
     unparse #{const WINDOW_PRESENTATION_HINT} ptr
-        = do window <- (#{peek struct wxyz_event, window_presentation_hint.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_presentation_hint.window} ptr)
              pure $ Just (WindowPresentationHint window)
     unparse #{const WINDOW_IDENTIFIER} ptr
-        = do window <- (#{peek struct wxyz_event, window_identifier.window} ptr)
+        = do window <- (#{peek struct crossing_event, window_identifier.window} ptr)
              pure $ Just (WindowIdentifier window)
 
     unparse #{const OUTPUT_REMOVED} ptr
-        = do output <- (#{peek struct wxyz_event, output_removed.output} ptr)
+        = do output <- (#{peek struct crossing_event, output_removed.output} ptr)
              pure $ Just (OutputRemoved output)
     unparse #{const OUTPUT_WL_OUTPUT} ptr
-        = do output <- (#{peek struct wxyz_event, output_wl_output.output} ptr)
-             name <- (#{peek struct wxyz_event, output_wl_output.name} ptr)
+        = do output <- (#{peek struct crossing_event, output_wl_output.output} ptr)
+             name <- (#{peek struct crossing_event, output_wl_output.name} ptr)
              pure $ Just (OutputWlOutput output name)
     unparse #{const OUTPUT_POSITION} ptr
-        = do output <- (#{peek struct wxyz_event, output_position.output} ptr)
-             x <- (#{peek struct wxyz_event, output_position.x} ptr)
-             y <- (#{peek struct wxyz_event, output_position.y} ptr)
+        = do output <- (#{peek struct crossing_event, output_position.output} ptr)
+             x <- (#{peek struct crossing_event, output_position.x} ptr)
+             y <- (#{peek struct crossing_event, output_position.y} ptr)
              pure $ Just (OutputPosition output x y)
     unparse #{const OUTPUT_DIMENSIONS} ptr
-        = do output <- (#{peek struct wxyz_event, output_dimensions.output} ptr)
-             width <- (#{peek struct wxyz_event, output_dimensions.width} ptr)
-             height <- (#{peek struct wxyz_event, output_dimensions.height} ptr)
+        = do output <- (#{peek struct crossing_event, output_dimensions.output} ptr)
+             width <- (#{peek struct crossing_event, output_dimensions.width} ptr)
+             height <- (#{peek struct crossing_event, output_dimensions.height} ptr)
              pure $ Just (OutputDimensions output width height)
 
     unparse #{const XKB_BINDING_PRESSED} ptr
-        = do binding <- (#{peek struct wxyz_event, xkb_binding_pressed.binding} ptr)
+        = do binding <- (#{peek struct crossing_event, xkb_binding_pressed.binding} ptr)
              pure $ Just (XKBBindingPressed binding)
 
 

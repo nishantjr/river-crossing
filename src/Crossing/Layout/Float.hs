@@ -1,4 +1,4 @@
-module WXYZ.Layout.Float (float, FloatMessages(..), toggleFloating) where
+module Crossing.Layout.Float (float, FloatMessages(..), toggleFloating) where
 
 import           Prelude hiding (Float, Floating)
 
@@ -8,14 +8,14 @@ import           Data.Typeable (Typeable)
 import qualified Data.Map as M
 
 
-import           WXYZ.River
+import           Crossing.River
 
 -- | Construct the floating layout.
 float :: l a -> Floating l a
 float l = Floating l M.empty
 
 -- | Send a message toggling floating status for a window.
-toggleFloating :: Rectangle -> WindowHandle -> WXYZ ()
+toggleFloating :: Rectangle -> WindowHandle -> Crossing ()
 toggleFloating r w = sendMessage $ ToggleFloat w r
 
 

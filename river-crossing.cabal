@@ -1,5 +1,5 @@
 cabal-version:      3.0
-name:               wxyzmonad
+name:               river-crossing
 version:            0.1.0.0
 -- synopsis:
 -- description:
@@ -30,12 +30,12 @@ common language
 library
     import:           language, warnings
     hs-source-dirs:   src/
-    exposed-modules:  WXYZ.Protocol
-                    , WXYZ.XKB
-                    , WXYZ.River
-                    , WXYZ.Layout.Core
-                    , WXYZ.Layout.Float
-                    , WXYZ.Layout.Workspaces
+    exposed-modules:  Crossing.Protocol
+                    , Crossing.XKB
+                    , Crossing.River
+                    , Crossing.Layout.Core
+                    , Crossing.Layout.Float
+                    , Crossing.Layout.Workspaces
     include-dirs:     .build/protocol/,
                       .
     c-sources:        cbits/river.c
@@ -58,7 +58,7 @@ library
                     , transformers
                     , unix
 
-executable wxyz
+executable crossing
     import:           language, warnings
     main-is:          Main.hs
     build-depends:
@@ -66,7 +66,7 @@ executable wxyz
       , containers
       , mtl
       , transformers
-      , wxyzmonad
+      , river-crossing
     hs-source-dirs:   exe
 
 test-suite unit-test
@@ -76,7 +76,7 @@ test-suite unit-test
     hs-source-dirs:
         unit-test
     build-depends:
-        wxyzmonad
+        river-crossing
       , tasty
       , tasty-hunit
       , base

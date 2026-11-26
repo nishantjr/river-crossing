@@ -2,8 +2,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# OPTIONS -Wno-unused-top-binds #-} -- Record fields
 
-module WXYZ.River (
-      wxyz
+module Crossing.River (
+      crossing
 
     , Dimensions(..), Position(..), Rectangle(..)
 
@@ -16,8 +16,8 @@ module WXYZ.River (
     , Seat(..), SeatHandle
     , Window(..), WindowHandle
 
-    , WXYZState(..)
-    , WXYZConfig(..), WXYZ, runWXYZ
+    , CrossingState(..)
+    , CrossingConfig(..), Crossing, runCrossing
     , shell
 
     , withFocused, focusedWindow
@@ -30,8 +30,8 @@ module WXYZ.River (
 
 import           Prelude hiding (mod)
 
-import           WXYZ.Protocol
-import           WXYZ.XKB
+import           Crossing.Protocol
+import           Crossing.XKB
 
 import           Control.Applicative ((<|>))
 import           Control.Monad (forM_, void, when)
@@ -91,14 +91,14 @@ data Seat = Seat { handle :: SeatHandle
                  }
     deriving (Show)
 
-data Binding = Binding { action :: WXYZ () }
+data Binding = Binding { action :: Crossing () }
 
 -- | Virtual workspace indices
 type WorkspaceId = String
 
 
 -- Cache of River's Window Management state
-data WXYZState = WXYZState { windows  :: Map WindowHandle Window
+data CrossingState = CrossingState { windows  :: Map WindowHandle Window
                            , outputs  :: Map OutputHandle Output
                            , seats    :: Map SeatHandle   Seat
                            , bindings :: Map RiverXKBBinding Binding
@@ -115,24 +115,24 @@ data WXYZState = WXYZState { windows  :: Map WindowHandle Window
                            }
 
 -- Immutable configuration
-data WXYZConfig l = WXYZConfig
+data CrossingConfig l = CrossingConfig
         { layout       :: l WindowHandle
-        , onStartup    :: WXYZ ()
-        , keyBindings  :: M.Map (Modifier,KeySym) (SeatHandle -> WXYZ ())
+        , onStartup    :: Crossing ()
+        , keyBindings  :: M.Map (Modifier,KeySym) (SeatHandle -> Crossing ())
         }
 
-type WXYZ = ReaderT (WXYZConfig Layout) (StateT WXYZState IO)
+type Crossing = ReaderT (CrossingConfig Layout) (StateT CrossingState IO)
 
---- | Run the 'WXYZ'' monad, given a chunk of 'WXYZ' monad code, and an initial
+--- | Run the 'Crossing'' monad, given a chunk of 'Crossing' monad code, and an initial
 --  state. Return the result, and final state
-runWXYZ :: WXYZConfig Layout -> WXYZState -> WXYZ a -> IO (a, WXYZState)
-runWXYZ c st act = runStateT (runReaderT act c) st
+runCrossing :: CrossingConfig Layout -> CrossingState -> Crossing a -> IO (a, CrossingState)
+runCrossing c st act = runStateT (runReaderT act c) st
 
 
 -- Low-level handling of River events
 -- ==================================
 
-handleBinding :: Event -> WXYZ (Maybe [Request])
+handleBinding :: Event -> Crossing (Maybe [Request])
 handleBinding (XKBBindingPressed binding) = runMaybeT $
     do st <- get
        lift $ fromMaybe (unknownBinding binding) $ fmap (.action) $ M.lookup binding st.bindings
@@ -152,18 +152,18 @@ outputRect o =
        pure (Rectangle pos.x pos.y dims.width dims.height)
 
 
-doLayoutAndUpdate :: WXYZ [(WindowHandle, Rectangle)]
+doLayoutAndUpdate :: Crossing [(WindowHandle, Rectangle)]
 doLayoutAndUpdate = do
     st <- get
     -- We do not assign a rectangle. The outer layout will pick that up from
-    -- the outputs. See WXYZ.Layouts.Workspace for an example.
+    -- the outputs. See Crossing.Layout.Workspaces for an example.
     let rect = (Rectangle 0 0 0 0)
     (winRects, newLayout)
         <- doLayout st.currLayout rect (M.keys st.windows)
     whenJust newLayout $ \l' -> put st{currLayout=l'}
     pure winRects
 
-manageAndRender :: Event -> WXYZ (Maybe [Request])
+manageAndRender :: Event -> Crossing (Maybe [Request])
 manageAndRender (WMManageStart wm) = do
     winRects <- doLayoutAndUpdate
     st <- get
@@ -182,7 +182,7 @@ manageAndRender (WMManageStart wm) = do
   where
     mkProposeDim (win, (Rectangle _x _y w h))
         = (WindowProposeDimensions win w h)
-    bindSeat :: RiverXKBBindings -> SeatHandle -> (Modifier, KeySym, SeatHandle -> WXYZ ()) -> WXYZ [Request]
+    bindSeat :: RiverXKBBindings -> SeatHandle -> (Modifier, KeySym, SeatHandle -> Crossing ()) -> Crossing [Request]
     bindSeat xkb seat (modifier, sym, act) =
       do binding <- liftIO $ riverXKBGetBinding xkb seat sym modifier
          st <- get
@@ -207,7 +207,7 @@ manageAndRender (WMRenderStart wm) = do
 
 manageAndRender _ = pure Nothing
 
-cacheRiverState :: Event -> WXYZ (Maybe [Request])
+cacheRiverState :: Event -> Crossing (Maybe [Request])
 cacheRiverState (WMWindow _wm win) = runMaybeT $
     do st <- get
        let node = riverWindowGetNode win
@@ -332,15 +332,15 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- keeps track of some sort of state).  Return @Nothing@ if the
     -- layout does not need to be modified.
     --
-    -- Layouts which do not need access to the 'WXYZ' monad ('IO', window
+    -- Layouts which do not need access to the 'Crossing' monad ('IO', window
     -- manager state, or configuration) and do not keep track of their
     -- own state should implement 'pureLayout' instead of 'doLayout'.
     doLayout    :: layout a -> Rectangle -> [a]
-                -> WXYZ ([(a, Rectangle)], Maybe (layout a))
+                -> Crossing ([(a, Rectangle)], Maybe (layout a))
     doLayout l r ws = return (pureLayout l r ws, Nothing)
 
     -- | This is a pure version of 'doLayout', for cases where we
-    -- don't need access to the 'WXYZ' monad to determine how to layout
+    -- don't need access to the 'Crossing' monad to determine how to layout
     -- the windows, and we don't need to modify the layout itself.
     pureLayout  :: layout a -> Rectangle -> [a] -> [(a, Rectangle)]
     pureLayout _ _ []    = []
@@ -352,11 +352,11 @@ class (Show (layout a), Typeable layout) => LayoutClass layout a where
     -- Otherwise, 'handleMessage' returns an updated layout and the
     -- screen is refreshed.
     --
-    -- Layouts which do not need access to the 'WXYZ' monad to decide how
+    -- Layouts which do not need access to the 'Crossing' monad to decide how
     -- to handle messages should implement 'pureMessage' instead of
     -- 'handleMessage' (this restricts the risk of error, and makes
     -- testing much easier).
-    handleMessage :: layout a -> SomeMessage -> WXYZ (Maybe (layout a))
+    handleMessage :: layout a -> SomeMessage -> Crossing (Maybe (layout a))
     handleMessage l = return . pureMessage l
 
     -- | Respond to a message by (possibly) changing our layout, but
@@ -418,7 +418,7 @@ instance (Typeable a) => Message (WindowMessages a)
 -- | Throw a message to the current 'LayoutClass' possibly modifying how we
 -- layout the windows.
 -- XXX force a ManageDirty?
-sendMessage :: Message a => a -> WXYZ ()
+sendMessage :: Message a => a -> Crossing ()
 sendMessage a = do
     liftIO $ putStrLn $ "SendMessage"
     st <- get
@@ -433,8 +433,8 @@ sendMessage a = do
 -- =========
 
 -- | Entry point for the window manager.
-wxyz :: (LayoutClass l WindowHandle) => WXYZConfig l -> IO ()
-wxyz config
+crossing :: (LayoutClass l WindowHandle) => CrossingConfig l -> IO ()
+crossing config
     = do Just display <- wlDisplayConnect -- TODO: This should print an
                                           -- error message.
          initEventQueue
@@ -445,10 +445,10 @@ wxyz config
                                        -- OK to rely on matching failure.
          riverWM <- getRiverWM
          riverWMAddEventListeners riverWM
-         let config' = config{layout=(Layout config.layout)} :: WXYZConfig Layout
-         void $ runWXYZ
+         let config' = config{layout=(Layout config.layout)} :: CrossingConfig Layout
+         void $ runCrossing
             config'
-            (WXYZState{ windows=M.empty
+            (CrossingState{ windows=M.empty
                       , outputs=M.empty
                       , seats=M.empty
                       , bindings=M.empty
@@ -457,7 +457,7 @@ wxyz config
                       })
             (config.onStartup >> eventLoop display)
   where
-    eventLoop :: WlDisplay -> WXYZ ()
+    eventLoop :: WlDisplay -> Crossing ()
     eventLoop display =
         do e <- liftIO $ next_event display
            case e of
@@ -474,9 +474,9 @@ wxyz config
         = do liftIO $ putStrLn $ "unhandled event: " ++ (show e)
              pure []
 
-(<||>) ::    (Event -> WXYZ (Maybe [Request]))
-          -> (Event -> WXYZ (Maybe [Request]))
-          ->  Event -> WXYZ (Maybe [Request])
+(<||>) ::    (Event -> Crossing (Maybe [Request]))
+          -> (Event -> Crossing (Maybe [Request]))
+          ->  Event -> Crossing (Maybe [Request])
 (<||>) h1 h2 e = do r1 <- h1 e
                     case r1 of Nothing  -> h2 e
                                Just _   -> pure r1
@@ -485,21 +485,21 @@ wxyz config
 -- High-level Operations
 -- =====================
 
-shell :: String -> WXYZ ()
+shell :: String -> Crossing ()
 shell cmd = liftIO $ do _ <- P.createProcess $ P.shell cmd
                         pure ()
 
 -- focus
 -- -----
 
-withFocused :: (WindowHandle -> WXYZ ()) -> SeatHandle -> WXYZ ()
+withFocused :: (WindowHandle -> Crossing ()) -> SeatHandle -> Crossing ()
 withFocused f s = do
     st <- get
     let mw = (M.lookup s st.seats >>= (.focused))
     whenJust mw $ \w -> f w
 
 -- | Set the focused window for a seat
-focusWindow :: SeatHandle -> WindowHandle -> WXYZ ()
+focusWindow :: SeatHandle -> WindowHandle -> Crossing ()
 focusWindow s w = do st <- get
                      put st{seats=M.adjust (\seat -> seat{focused=Just w}) s st.seats}
                      liftIO $ _river_window_v1_focus_window s w
@@ -508,23 +508,23 @@ focusWindow s w = do st <- get
 -- Note that this uses the window managers internal list of windows.
 -- This is a fairly arbitrary ordering--it doesn't take into account outputs,
 -- and includes windows that are hidden etc.
-focusNext :: SeatHandle -> WXYZ ()
+focusNext :: SeatHandle -> Crossing ()
 focusNext s = do st <- get
                  focusNextInList (M.keys st.windows) s
 
 -- | Focus the previous window in the window list.
-focusPrev :: SeatHandle -> WXYZ ()
+focusPrev :: SeatHandle -> Crossing ()
 focusPrev s = do st <- get
                  focusNextInList (reverse $ M.keys st.windows) s
 
-focusNextInList :: [WindowHandle] -> SeatHandle -> WXYZ ()
+focusNextInList :: [WindowHandle] -> SeatHandle -> Crossing ()
 focusNextInList ws s = do
     mfw <- focusedWindow s
     let mw = (mfw >>= (flip nextItem ws))
                <|> listToMaybe ws
     whenJust mw $ \w -> focusWindow s w
 
-focusedWindow :: SeatHandle -> WXYZ (Maybe WindowHandle)
+focusedWindow :: SeatHandle -> Crossing (Maybe WindowHandle)
 focusedWindow s = do
     st <- get
     pure $ M.lookup s st.seats >>= (.focused)
@@ -536,20 +536,20 @@ focusedWindow s = do
 -- | Inform the client that it is fullscreen without actually making it
 -- fullscreen. This is useful with a user wants the application to adjust
 -- its UI to a more minimal version, hiding menus etc. e.g. VLC, Firefox.
-informFullscreen :: WindowHandle -> WXYZ ()
+informFullscreen :: WindowHandle -> Crossing ()
 informFullscreen wh = do
     st <- get
     put st{windows=M.adjust (\w -> w{informedFullscreen=True}) wh st.windows}
     liftIO $ _river_window_v1_inform_fullscreen wh
 
 -- | Inform the client that it is not fullscreen.
-informNotFullscreen :: WindowHandle -> WXYZ ()
+informNotFullscreen :: WindowHandle -> Crossing ()
 informNotFullscreen wh = do
     st <- get
     put st{windows=M.adjust (\w -> w{informedFullscreen=False}) wh st.windows}
     liftIO $ _river_window_v1_inform_not_fullscreen wh
 
-toggleInformFullscreen :: WindowHandle -> WXYZ ()
+toggleInformFullscreen :: WindowHandle -> Crossing ()
 toggleInformFullscreen w = void $ runMaybeT $
     ifM ((.informedFullscreen) <$> getWindow w)
         (lift $ informNotFullscreen w)
@@ -563,11 +563,11 @@ toggleInformFullscreen w = void $ runMaybeT $
 
 -- | Get the 'current' seat. For now, this is hacked to use the the first seat.
 -- See the TODO in the README.
-currentSeat' :: WXYZ (Maybe SeatHandle)
+currentSeat' :: Crossing (Maybe SeatHandle)
 currentSeat' = ((listToMaybe . M.keys . (.seats)) <$> get)
 
 -- | Get the currently focused window.
-focusedWindow' :: WXYZ (Maybe WindowHandle)
+focusedWindow' :: Crossing (Maybe WindowHandle)
 focusedWindow' = runMaybeT (MaybeT currentSeat' >>= (MaybeT . focusedWindow))
 
 
@@ -580,7 +580,7 @@ nextItem _ [] = Nothing
 nextItem a lst@(x:xs) = lookup a (zip lst (xs ++ [x]))
 
 -- | Get window from a handle
-getWindow :: WindowHandle -> MaybeT WXYZ Window
+getWindow :: WindowHandle -> MaybeT Crossing Window
 getWindow h = do st <- lift get
                  MaybeT $ pure $ M.lookup h st.windows
 

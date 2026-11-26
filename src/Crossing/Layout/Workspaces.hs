@@ -1,4 +1,4 @@
-module WXYZ.Layout.Workspaces (
+module Crossing.Layout.Workspaces (
         workspaces,
         view, shift, WorkspaceMessages(..)
     ) where
@@ -15,8 +15,8 @@ import qualified Data.Map as M
 import           Data.Maybe
 import           Data.Typeable
 
-import           WXYZ.River hiding (WXYZConfig(..), WXYZState(outputs, seats))
-import qualified WXYZ.River as State (WXYZState(..))
+import           Crossing.River hiding (CrossingConfig(..), CrossingState(outputs, seats))
+import qualified Crossing.River as State (CrossingState(..))
 
 -- Partitions the list of windows, and assigns them to workspaces.
 -- Each output is assigned a workspace. These are the 'visible' workspaces.
@@ -147,9 +147,9 @@ instance (Eq a, Show a, Typeable a, LayoutClass l a)
         pure $ this { workspaces = M.insert tag (ws { layout = l'}) this.workspaces }
 
 
-view :: Tag -> SeatHandle -> WXYZ ()
+view :: Tag -> SeatHandle -> Crossing ()
 view t s = sendMessage (View @WindowHandle s t)
 
-shift :: Tag -> SeatHandle -> WXYZ ()
+shift :: Tag -> SeatHandle -> Crossing ()
 shift t s = void $ runMaybeT $ (MaybeT $ focusedWindow s)
                            >>= (\w -> lift $ sendMessage (MoveWindowToWorkspace w t))

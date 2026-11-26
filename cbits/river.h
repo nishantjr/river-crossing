@@ -7,7 +7,7 @@
 
 bool await_registry(struct wl_display* display);
 
-enum wxyz_event_type {
+enum crossing_event_type {
     WM_UNAVAILABLE,
     WM_FINISHED,
     WM_MANAGE_START,
@@ -85,9 +85,9 @@ struct seat_removed                         { struct river_seat_v1* seat; };
 
 struct xkb_binding_pressed                  { struct river_xkb_binding_v1* binding; };
 
-struct wxyz_event {
+struct crossing_event {
     struct wl_list link;
-    enum wxyz_event_type type;
+    enum crossing_event_type type;
     union {
         struct wm_unavailable       wm_unavailable;
         struct wm_finished          wm_finished;
@@ -130,7 +130,7 @@ struct wxyz_event {
 };
 
 void init_event_queue();
-struct wxyz_event* wxyz_next_event(struct wl_display* display);
+struct crossing_event* crossing_next_event(struct wl_display* display);
 
 struct river_window_manager_v1*  get_river_window_manager();
 void river_wm_add_event_listeners(struct river_window_manager_v1* window_manager_v1);
