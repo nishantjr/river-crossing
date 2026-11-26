@@ -15,7 +15,7 @@ extra-doc-files:    CHANGELOG.md
 
 
 -- We disable the ambiguous-fields warning since there's no real alternative,
--- untile OverloadedRecordUpdate is stable.
+-- until OverloadedRecordUpdate is stable.
 -- See: https://discourse.haskell.org/t/what-are-you-supposed-to-do-about-wambiguous-fields/9545/13
 common warnings
     ghc-options: -Wall -Wno-ambiguous-fields

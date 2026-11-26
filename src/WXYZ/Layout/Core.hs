@@ -46,7 +46,7 @@ instance Message Resize
 instance Message IncMasterN
 
 -- | Simple fullscreen mode, tracking the focused window.
--- This differs from XMonads implementation in that tracking of the focused
+-- This differs from XMonad's implementation in that tracking of the focused
 -- window happens in the Layout rather than through a StackSet provided by the
 -- WM. We explicitly track the focus of the first Seat, and ignore all others.
 full :: Full a
@@ -66,7 +66,7 @@ instance LayoutClass Full WindowHandle where
 
     description _ = "Full"
 
--- | The builtin tiling mode of xmonad. Supports 'Shrink', 'Expand' and
+-- | The builtin tiling mode of XMonad. Supports 'Shrink', 'Expand' and
 -- 'IncMasterN'.
 data Tall a = Tall { tallNMaster :: !Int               -- ^ The default number of windows in the master pane (default: 1)
                    , tallRatioIncrement :: !Rational   -- ^ Percent of screen to increment by when resizing panes (default: 3/100)

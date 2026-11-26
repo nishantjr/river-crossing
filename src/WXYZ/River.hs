@@ -63,7 +63,7 @@ type Dimension     = Int32
 data Dimensions = Dimensions { width :: Dimension, height :: Dimension }
     deriving (Eq, Read, Show)
 
--- capatibility for XMonad
+-- compatibility for XMonad
 data Rectangle = Rectangle {
         rect_x      :: !Int32,
         rect_y      :: !Int32,
@@ -104,8 +104,8 @@ data WXYZState = WXYZState { windows  :: Map WindowHandle Window
                            , bindings :: Map RiverXKBBinding Binding
 
                            -- Seats registered since last manage block.
-                           -- These are needed so that we can set up bindings.
-                           -- Setting up bindings in non-idemopotent, so
+                            -- These are needed so that we can set up bindings.
+                            -- Setting up bindings in non-idempotent, so
                            -- unlike in the case of window layouts, we can't
                            -- just re-do everything from scratch and expect
                            -- it to be ok.
@@ -300,7 +300,7 @@ data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 -- that any 'LayoutClass' instance chooses to define.
 --
 -- This differs from XMonad's LayoutClass in two ways.
--- First, it uses [a] instead of rather than Stack. XMonad's Stack
+-- First, it uses [a] rather than Stack. XMonad's Stack
 -- encodes the focused window in a zipper structure to allow layouts to
 -- take into account the focused window. This makes the assumption
 -- that there is only a single focused window. This assumption does not
@@ -317,7 +317,7 @@ data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 --
 -- If we are interested in bringing over XMonad layouts wholesale and
 -- unchanged, something that could work for the pure-er layouts, we
--- can implement a compatiblity `XMonadLayout` combinator that allows
+-- can implement a compatibility `XMonadLayout` combinator that allows
 -- using XMonad's interface.
 class (Show (layout a), Typeable layout) => LayoutClass layout a where
 
